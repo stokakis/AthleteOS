@@ -850,18 +850,41 @@ function autoResize(el) {
   el.style.height = Math.min(el.scrollHeight, 160) + 'px';
 }
 
-function handleImageAttach(event) {
-  const files = Array.from(event.target.files);
-  files.forEach(file => {
+const MAX_IMG_PX = 1568; // Anthropic recommended max dimension
+
+function resizeImageFile(file) {
+  return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = e => {
-      const dataUrl = e.target.result;
-      const base64 = dataUrl.split(',')[1];
-      const mediaType = file.type;
-      _attachedImages.push({ base64, mediaType, name: file.name });
-      renderImagePreviews();
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w <= MAX_IMG_PX && h <= MAX_IMG_PX) {
+          // No resize needed
+          resolve({ base64: e.target.result.split(',')[1], mediaType: file.type });
+          return;
+        }
+        const scale = Math.min(MAX_IMG_PX / w, MAX_IMG_PX / h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const resized = canvas.toDataURL('image/jpeg', 0.85);
+        resolve({ base64: resized.split(',')[1], mediaType: 'image/jpeg' });
+      };
+      img.src = e.target.result;
     };
     reader.readAsDataURL(file);
+  });
+}
+
+function handleImageAttach(event) {
+  const files = Array.from(event.target.files);
+  files.forEach(async file => {
+    const { base64, mediaType } = await resizeImageFile(file);
+    _attachedImages.push({ base64, mediaType, name: file.name });
+    renderImagePreviews();
   });
   event.target.value = '';
 }

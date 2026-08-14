@@ -179,15 +179,37 @@ def run_command(command: str, args: str = "") -> str:
 MAX_HISTORY_MESSAGES = 20  # keep last 20 messages to avoid context overflow
 
 
+def _strip_images_from_message(msg: dict) -> dict:
+    """Remove image blocks from a message, keeping only text content."""
+    content = msg.get("content", "")
+    if isinstance(content, list):
+        text_only = [b for b in content if isinstance(b, dict) and b.get("type") != "image"]
+        if not text_only:
+            text_only = [{"type": "text", "text": "[image removed from history]"}]
+        return {**msg, "content": text_only}
+    return msg
+
+
 def _trim_messages(messages: list[dict]) -> list[dict]:
-    """Keep only the last MAX_HISTORY_MESSAGES, always starting with a user message."""
+    """Keep only the last MAX_HISTORY_MESSAGES, always starting with a user message.
+    Strip images from all but the last 2 messages to avoid context overflow."""
     if len(messages) <= MAX_HISTORY_MESSAGES:
-        return messages
-    trimmed = messages[-MAX_HISTORY_MESSAGES:]
+        trimmed = messages
+    else:
+        trimmed = messages[-MAX_HISTORY_MESSAGES:]
+
     # Ensure first message is from user (API requirement)
     while trimmed and trimmed[0].get("role") != "user":
         trimmed = trimmed[1:]
-    return trimmed
+
+    # Strip images from all but the last 2 messages
+    result = []
+    for i, msg in enumerate(trimmed):
+        if i < len(trimmed) - 2:
+            result.append(_strip_images_from_message(msg))
+        else:
+            result.append(msg)
+    return result
 
 
 def stream_chat(messages: list[dict]):
