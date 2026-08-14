@@ -955,6 +955,15 @@ async function sendChat() {
     chatHistory.push({ role: 'assistant', content: fullText });
     // Refresh session list sidebar
     loadSessionList();
+    // Auto-extract and save any workout files in the response
+    if (fullText.includes('date:') && fullText.includes('type:') && fullText.includes('status:')) {
+      try {
+        const extracted = await post('/workouts/extract-and-save', { text: fullText });
+        if (extracted.saved && extracted.saved.length > 0) {
+          toast(`✓ ${extracted.saved.length} workout(s) αποθηκεύτηκαν στο Calendar!`, 'success');
+        }
+      } catch {}
+    }
   } catch(e) {
     aiMsgEl.querySelector('.msg-content').textContent = 'Error: ' + e.message;
   }

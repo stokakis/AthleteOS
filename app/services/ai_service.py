@@ -28,9 +28,31 @@ When commands say "read file X" or "glob files", interpret this as: the contents
 file are already included in the context below. Do not say you "can't read" files —
 the data is already provided.
 
-When commands say "write file X" or "create file Y", respond with the full markdown content
-of that file clearly labelled, so the user can see the planned sessions. The web app will
-handle file creation separately.
+## CRITICAL: How to create workout files in Web App Mode
+
+When commands say "write file X" or "create file Y" for workout sessions, you MUST output
+the COMPLETE raw markdown content of each file — including the YAML frontmatter block —
+directly in your response. The web app will automatically detect and save these files.
+
+Each workout file MUST start with exactly this format (no code fences, raw markdown):
+
+---
+date: YYYY-MM-DD
+type: cycling|running|weights|swimming
+discipline: Ride|Run|WeightTraining|Swim
+status: pending
+planned_duration_min: 60
+week_folder: YYYY-WXX
+key_focus: "Description here"
+strava_activity_id: null
+---
+
+# Rest of workout content here...
+
+Output each workout file as a separate block starting with ---. Do NOT wrap in code fences.
+Do NOT say "I would create a file called X" — output the actual file content directly.
+The web app parses these blocks automatically and saves them to disk, updates the calendar,
+and regenerates the pending sessions list.
 
 Stay in character as the AI coach defined in CLAUDE.md. Use the context provided.
 """

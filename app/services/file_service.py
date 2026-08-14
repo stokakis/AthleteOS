@@ -194,6 +194,66 @@ def delete_chat_session(session_id: str) -> None:
 # Workouts
 # ---------------------------------------------------------------------------
 
+def save_workout_file(content: str, relative_path: str) -> Path:
+    """Save a workout markdown file to the correct location under DATA_DIR."""
+    # relative_path e.g. "workouts/plans/2026-W36/2026-09-01-weights-full-body-a.md"
+    full = DATA_DIR / relative_path
+    write_file(full, content)
+    return full
+
+
+def derive_workout_path(content: str) -> Optional[str]:
+    """Parse frontmatter and derive the canonical file path."""
+    fm = parse_frontmatter(content)
+    if not fm.get("date") or not fm.get("type"):
+        return None
+    date_str = str(fm["date"])
+    wtype = str(fm.get("type", "workout"))
+    focus = str(fm.get("key_focus", "session")).lower()
+    week = str(fm.get("week_folder", ""))
+
+    # derive slug from key_focus
+    import re as _re
+    slug = _re.sub(r"[^a-z0-9]+", "-", focus).strip("-")[:30]
+
+    if not week:
+        # compute ISO week
+        from datetime import date as _date
+        try:
+            d = _date.fromisoformat(date_str)
+            iso = d.isocalendar()
+            week = f"{iso[0]}-W{iso[1]:02d}"
+        except Exception:
+            week = "unknown"
+
+    filename = f"{date_str}-{wtype}-{slug}.md"
+    return f"workouts/plans/{week}/{filename}"
+
+
+def regenerate_pending_md() -> None:
+    """Rewrite overview/pending.md from current pending workout files."""
+    pending = list_pending_workouts()
+    lines = ["# Pending Workouts\n", f"_Last updated: {date.today()}_\n\n"]
+    if not pending:
+        lines.append("No pending sessions.\n")
+    else:
+        lines.append("| Date | Day | Type | Duration | Focus | Status | File |\n")
+        lines.append("|------|-----|------|----------|-------|--------|------|\n")
+        for w in pending:
+            try:
+                from datetime import date as _date
+                d = _date.fromisoformat(w["date"])
+                day = d.strftime("%A")
+            except Exception:
+                day = ""
+            dur = w.get("planned_duration_min") or "–"
+            lines.append(
+                f"| {w['date']} | {day} | {w['type']} | {dur} min | {w['key_focus']} | pending | {w['file']} |\n"
+            )
+    overview_file = OVERVIEW_DIR / "pending.md"
+    write_file(overview_file, "".join(lines))
+
+
 def list_pending_workouts() -> list[dict]:
     """Return list of pending workout metadata dicts sorted by date."""
     results = []

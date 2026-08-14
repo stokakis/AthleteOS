@@ -219,6 +219,49 @@ def get_workout_file(path: str = Query(...)):
     return {"content": content}
 
 
+class SaveWorkoutRequest(BaseModel):
+    content: str
+    path: Optional[str] = None  # if None, derive from frontmatter
+
+
+@router.post("/workouts/save")
+def save_workout(req: SaveWorkoutRequest):
+    """Save a workout markdown file and regenerate pending.md."""
+    rel_path = req.path or fs.derive_workout_path(req.content)
+    if not rel_path:
+        raise HTTPException(400, "Cannot derive path — check frontmatter (date, type, key_focus required)")
+    saved = fs.save_workout_file(req.content, rel_path)
+    fs.regenerate_pending_md()
+    return {"ok": True, "path": rel_path}
+
+
+@router.post("/workouts/extract-and-save")
+async def extract_and_save(request: Request):
+    """Extract workout markdown blocks from AI response text and save them."""
+    body = await request.json()
+    text = body.get("text", "")
+    saved = []
+    import re
+    # Find all markdown code blocks with YAML frontmatter
+    blocks = re.findall(r'(---\n.*?^---\n.*?)(?=---\n|\Z)', text, re.DOTALL | re.MULTILINE)
+    if not blocks:
+        # Try to find sections that look like workout files (have date: and type: in frontmatter)
+        blocks = re.findall(r'(---\ndate:.*?---\n[\s\S]*?)(?=---\ndate:|\Z)', text, re.DOTALL)
+    for block in blocks:
+        block = block.strip()
+        if not block.startswith("---"):
+            continue
+        fm = fs.parse_frontmatter(block)
+        if fm.get("date") and fm.get("type"):
+            rel_path = fs.derive_workout_path(block)
+            if rel_path:
+                fs.save_workout_file(block, rel_path)
+                saved.append(rel_path)
+    if saved:
+        fs.regenerate_pending_md()
+    return {"ok": True, "saved": saved}
+
+
 # ---------------------------------------------------------------------------
 # Reflections
 # ---------------------------------------------------------------------------
