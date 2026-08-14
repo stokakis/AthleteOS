@@ -19,7 +19,9 @@ STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET", "")
 STRAVA_REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN", "")
 
 # Anthropic
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+ANTHROPIC_API_KEY      = os.getenv("ANTHROPIC_API_KEY", "")
+ANTHROPIC_BASE_URL     = os.getenv("ANTHROPIC_BASE_URL", "")   # optional custom base URL
+ANTHROPIC_MODEL        = os.getenv("ANTHROPIC_MODEL", "claude-opus-4-5")
 
 # Hevy (optional)
 HEVY_API_KEY = os.getenv("HEVY_API_KEY", "")

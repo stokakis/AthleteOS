@@ -9,7 +9,7 @@ from typing import Optional
 
 import anthropic
 
-from app.config import ANTHROPIC_API_KEY
+from app.config import ANTHROPIC_API_KEY, ANTHROPIC_BASE_URL, ANTHROPIC_MODEL
 from app.services import file_service as fs
 
 # Load CLAUDE.md system prompt once
@@ -26,10 +26,18 @@ def _get_system_prompt() -> str:
 
 
 def _client() -> anthropic.Anthropic:
-    key = os.getenv("ANTHROPIC_API_KEY", ANTHROPIC_API_KEY)
+    key      = os.getenv("ANTHROPIC_API_KEY", ANTHROPIC_API_KEY)
+    base_url = os.getenv("ANTHROPIC_BASE_URL", ANTHROPIC_BASE_URL)
     if not key:
         raise RuntimeError("ANTHROPIC_API_KEY not set. Add it in Settings.")
-    return anthropic.Anthropic(api_key=key)
+    kwargs = {"api_key": key}
+    if base_url:
+        kwargs["base_url"] = base_url
+    return anthropic.Anthropic(**kwargs)
+
+
+def _model() -> str:
+    return os.getenv("ANTHROPIC_MODEL", ANTHROPIC_MODEL)
 
 
 def _build_context() -> str:
@@ -70,7 +78,7 @@ def chat(messages: list[dict], stream: bool = False) -> str:
     system = _get_system_prompt() + "\n\n# Current Athlete Context\n\n" + _build_context()
 
     response = client.messages.create(
-        model="claude-opus-4-5",
+        model=_model(),
         max_tokens=4096,
         system=system,
         messages=messages,
@@ -99,7 +107,7 @@ def run_command(command: str, args: str = "") -> str:
 
     client = _client()
     response = client.messages.create(
-        model="claude-opus-4-5",
+        model=_model(),
         max_tokens=8096,
         system=system,
         messages=[{"role": "user", "content": user_msg}],
@@ -113,7 +121,7 @@ def stream_chat(messages: list[dict]):
     system = _get_system_prompt() + "\n\n# Current Athlete Context\n\n" + _build_context()
 
     with client.messages.stream(
-        model="claude-opus-4-5",
+        model=_model(),
         max_tokens=4096,
         system=system,
         messages=messages,

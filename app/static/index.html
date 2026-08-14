@@ -467,6 +467,14 @@ input[type=range]{padding:0;height:4px;accent-color:var(--accent)}
           <label>Anthropic API Key</label>
           <input id="ai-key" type="password" placeholder="sk-ant-…"/>
         </div>
+        <div class="form-group">
+          <label>Custom Base URL <span style="color:var(--muted);font-weight:400;text-transform:none">(optional — e.g. https://app.claude.gg)</span></label>
+          <input id="ai-baseurl" placeholder="Leave empty to use official Anthropic API"/>
+        </div>
+        <div class="form-group">
+          <label>Model <span style="color:var(--muted);font-weight:400;text-transform:none">(optional)</span></label>
+          <input id="ai-model" placeholder="claude-opus-4-5"/>
+        </div>
         <div id="ai-status" style="margin-bottom:12px;display:none"></div>
         <div style="display:flex;gap:10px">
           <button class="btn btn-primary" onclick="saveAIKey()">Save Key</button>
@@ -1071,13 +1079,18 @@ async function startStravaOAuth() {
 function skipStrava() { wstep(2); }
 
 async function saveAIKey() {
-  const key = document.getElementById('ai-key').value.trim();
+  const key     = document.getElementById('ai-key').value.trim();
+  const baseurl = document.getElementById('ai-baseurl').value.trim();
+  const model   = document.getElementById('ai-model').value.trim();
   if (!key) { toast('Enter an API key', 'error'); return; }
   try {
-    await post('/setup/save-env', { ANTHROPIC_API_KEY: key });
+    const payload = { ANTHROPIC_API_KEY: key };
+    if (baseurl) payload.ANTHROPIC_BASE_URL = baseurl;
+    if (model)   payload.ANTHROPIC_MODEL = model;
+    await post('/setup/save-env', payload);
     const st = document.getElementById('ai-status');
     st.style.display = 'block';
-    st.innerHTML = '<span style="color:var(--green)">✓ Key saved</span>';
+    st.innerHTML = `<span style="color:var(--green)">✓ Key saved${baseurl ? ' · Base URL: ' + baseurl : ''}</span>`;
     toast('AI key saved!', 'success');
   } catch(e) {
     toast('Error: ' + e.message, 'error');
