@@ -11,11 +11,11 @@ import requests
 from dotenv import set_key
 from pathlib import Path
 
-from app.config import OVERVIEW_DIR
+from app.config import OVERVIEW_DIR, DATA_DIR
 from app.services import file_service as fs
 
 INTERVALS_BASE = "https://intervals.icu/api/v1"
-ENV_PATH = Path(".env")
+ENV_PATH = DATA_DIR / ".env"
 
 
 def _creds() -> tuple[str, str]:
@@ -50,10 +50,10 @@ def test_connection() -> dict:
 
 
 def save_credentials(athlete_id: str, api_key: str) -> None:
-    set_key(str(ENV_PATH), "INTERVALS_ATHLETE_ID", athlete_id)
-    set_key(str(ENV_PATH), "INTERVALS_API_KEY", api_key)
-    os.environ["INTERVALS_ATHLETE_ID"] = athlete_id
-    os.environ["INTERVALS_API_KEY"]    = api_key
+    ENV_PATH.parent.mkdir(parents=True, exist_ok=True)
+    from app.services.file_service import save_env_var
+    save_env_var("INTERVALS_ATHLETE_ID", athlete_id)
+    save_env_var("INTERVALS_API_KEY", api_key)
 
 
 def fetch_activities(after_date: Optional[str] = None, before_date: Optional[str] = None) -> list[dict]:

@@ -1,18 +1,26 @@
 """
 AthleteOS Web App — FastAPI entry point.
 """
+import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from app.config import ensure_dirs
+from app.config import ensure_dirs, DATA_DIR
 from app.api.routes import router
 
 # Ensure data directories exist on startup
 ensure_dirs()
+
+# Load persistent .env from DATA_DIR (survives Railway redeployments)
+# This overrides any values already in environment so user settings take effect
+_persistent_env = DATA_DIR / ".env"
+if _persistent_env.exists():
+    load_dotenv(dotenv_path=str(_persistent_env), override=True)
 
 app = FastAPI(title="AthleteOS", version="1.0.0", docs_url="/docs")
 

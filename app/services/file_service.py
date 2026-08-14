@@ -4,15 +4,18 @@ All paths resolved relative to DATA_DIR from config.
 """
 import json
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Optional
 
 import yaml
 
 from app.config import (
-    ATHLETE_DIR, WORKOUTS_DIR, JOURNALS_DIR, OVERVIEW_DIR, DATA_FILES
+    ATHLETE_DIR, WORKOUTS_DIR, JOURNALS_DIR, OVERVIEW_DIR, DATA_FILES, DATA_DIR
 )
+
+# .env lives inside DATA_DIR so it survives Railway redeployments
+ENV_PATH = DATA_DIR / ".env"
 
 
 # ---------------------------------------------------------------------------
@@ -73,8 +76,7 @@ def profile_exists() -> bool:
 def get_setup_state() -> dict:
     """Return a dict summarising what's configured."""
     profile = get_profile()
-    env_path = Path(".env")
-    env_text = read_file(env_path) or ""
+    env_text = read_file(ENV_PATH) or ""
 
     def env_has(key):
         return bool(re.search(rf"^{key}=.+", env_text, re.MULTILINE))
@@ -100,16 +102,92 @@ def get_setup_state() -> dict:
 
 
 def save_env_var(key: str, value: str) -> None:
-    """Write or update a single key in .env."""
-    env_path = Path(".env")
-    text = read_file(env_path) or ""
+    """Write or update a single key in persistent .env inside DATA_DIR."""
+    text = read_file(ENV_PATH) or ""
     pattern = rf"^{re.escape(key)}=.*$"
     new_line = f"{key}={value}"
     if re.search(pattern, text, re.MULTILINE):
         text = re.sub(pattern, new_line, text, flags=re.MULTILINE)
     else:
         text = text.rstrip("\n") + f"\n{new_line}\n"
-    write_file(env_path, text)
+    write_file(ENV_PATH, text)
+    # Also update os.environ immediately so the running process picks it up
+    import os
+    os.environ[key] = value
+
+
+# ---------------------------------------------------------------------------
+# Chat sessions
+# ---------------------------------------------------------------------------
+
+CHAT_DIR = DATA_DIR / "chats"
+
+
+def _chat_path(session_id: str) -> Path:
+    return CHAT_DIR / f"{session_id}.json"
+
+
+def save_chat_session(session_id: str, messages: list) -> None:
+    """Persist a chat session (messages list) to disk."""
+    CHAT_DIR.mkdir(parents=True, exist_ok=True)
+    data = {
+        "session_id": session_id,
+        "updated_at": datetime.utcnow().isoformat(),
+        "title": _derive_title(messages),
+        "messages": messages,
+    }
+    write_file(_chat_path(session_id), json.dumps(data, ensure_ascii=False, indent=2))
+
+
+def _derive_title(messages: list) -> str:
+    """Use first user message as session title (truncated)."""
+    for m in messages:
+        if m.get("role") == "user":
+            content = m.get("content", "")
+            if isinstance(content, list):
+                for block in content:
+                    if isinstance(block, dict) and block.get("type") == "text":
+                        content = block.get("text", "")
+                        break
+            if content:
+                return str(content)[:60]
+    return "New conversation"
+
+
+def get_chat_session(session_id: str) -> Optional[dict]:
+    text = read_file(_chat_path(session_id))
+    if not text:
+        return None
+    try:
+        return json.loads(text)
+    except Exception:
+        return None
+
+
+def list_chat_sessions() -> list[dict]:
+    """Return all sessions sorted by updated_at descending (newest first)."""
+    if not CHAT_DIR.exists():
+        return []
+    sessions = []
+    for f in CHAT_DIR.glob("*.json"):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8"))
+            sessions.append({
+                "session_id": data.get("session_id", f.stem),
+                "title": data.get("title", "Conversation"),
+                "updated_at": data.get("updated_at", ""),
+                "message_count": len(data.get("messages", [])),
+            })
+        except Exception:
+            pass
+    sessions.sort(key=lambda x: x["updated_at"], reverse=True)
+    return sessions[:50]  # max 50 recent sessions
+
+
+def delete_chat_session(session_id: str) -> None:
+    p = _chat_path(session_id)
+    if p.exists():
+        p.unlink()
 
 
 # ---------------------------------------------------------------------------

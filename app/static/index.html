@@ -115,6 +115,13 @@ textarea{resize:vertical;min-height:100px}
 .chat-image-thumb{position:relative;width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--border2)}
 .chat-image-thumb img{width:100%;height:100%;object-fit:cover}
 .chat-image-remove{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.7);color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+.session-item{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;cursor:pointer;font-size:12px;color:var(--text);transition:all .15s;position:relative}
+.session-item:hover{border-color:var(--accent);color:var(--accent)}
+.session-item.active{border-color:var(--accent);background:rgba(249,115,22,.07)}
+.session-item .session-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:18px}
+.session-item .session-date{color:var(--muted);font-size:10px;margin-top:2px}
+.session-del{position:absolute;top:6px;right:6px;background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;opacity:0;transition:opacity .15s}
+.session-item:hover .session-del{opacity:1}
 .cmd-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .cmd-btn{background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:6px;color:var(--muted);font-size:11px;padding:4px 10px;cursor:pointer;transition:all .15s}
 .cmd-btn:hover{color:var(--accent);border-color:var(--accent);background:rgba(249,115,22,.06)}
@@ -247,26 +254,35 @@ input[type=range]{padding:0;height:4px;accent-color:var(--accent)}
     </div>
 
     <!-- AI COACH -->
-    <div class="page" id="page-coach">
-      <div class="page-title">AI Coach</div>
-      <div class="page-sub">Chat with your AI trainer or run a command</div>
-      <div class="card">
-        <div class="cmd-bar">
-          <span class="cmd-btn" onclick="sendCmd('/plan-workouts')">/plan-workouts</span>
-          <span class="cmd-btn" onclick="sendCmd('/review')">/review</span>
-          <span class="cmd-btn" onclick="sendCmd('/fetch-activities')">/fetch-activities</span>
-          <span class="cmd-btn" onclick="sendCmd('/calendar')">/calendar</span>
-          <span class="cmd-btn" onclick="sendCmd('/journal')">/journal</span>
-          <span class="cmd-btn" onclick="sendCmd('/set-goals')">/set-goals</span>
-          <span class="cmd-btn" onclick="sendCmd('/push-workouts')">/push-workouts</span>
+    <div class="page" id="page-coach" style="display:none">
+      <div style="display:flex;gap:16px;height:calc(100vh - 120px)">
+
+        <!-- History sidebar -->
+        <div id="chat-history-sidebar" style="width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-primary" onclick="newChat()" style="width:100%;margin-bottom:4px">+ Νέα συνομιλία</button>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:0 4px">Ιστορικό</div>
+          <div id="session-list" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px"></div>
         </div>
-        <div id="chat-messages"></div>
-        <div id="chat-image-preview" class="chat-image-preview"></div>
-        <div class="chat-input-row">
-          <button class="chat-attach-btn" onclick="document.getElementById('chat-file-input').click()" title="Attach image">📎</button>
-          <input type="file" id="chat-file-input" accept="image/*" multiple onchange="handleImageAttach(event)"/>
-          <textarea id="chat-input" placeholder="Message your coach… (Shift+Enter για νέα γραμμή)" onkeydown="chatKey(event)" rows="1" oninput="autoResize(this)"></textarea>
-          <button class="btn btn-primary" onclick="sendChat()" id="chat-send-btn" style="height:42px;flex-shrink:0">Send</button>
+
+        <!-- Main chat -->
+        <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:0;padding:16px">
+          <div class="cmd-bar">
+            <span class="cmd-btn" onclick="sendCmd('/plan-workouts')">/plan-workouts</span>
+            <span class="cmd-btn" onclick="sendCmd('/review')">/review</span>
+            <span class="cmd-btn" onclick="sendCmd('/fetch-activities')">/fetch-activities</span>
+            <span class="cmd-btn" onclick="sendCmd('/calendar')">/calendar</span>
+            <span class="cmd-btn" onclick="sendCmd('/journal')">/journal</span>
+            <span class="cmd-btn" onclick="sendCmd('/set-goals')">/set-goals</span>
+            <span class="cmd-btn" onclick="sendCmd('/push-workouts')">/push-workouts</span>
+          </div>
+          <div id="chat-messages" style="flex:1;overflow-y:auto;min-height:0"></div>
+          <div id="chat-image-preview" class="chat-image-preview"></div>
+          <div class="chat-input-row">
+            <button class="chat-attach-btn" onclick="document.getElementById('chat-file-input').click()" title="Attach image">📎</button>
+            <input type="file" id="chat-file-input" accept="image/*" multiple onchange="handleImageAttach(event)"/>
+            <textarea id="chat-input" placeholder="Message your coach… (Shift+Enter για νέα γραμμή)" onkeydown="chatKey(event)" rows="1" oninput="autoResize(this)"></textarea>
+            <button class="btn btn-primary" onclick="sendChat()" id="chat-send-btn" style="height:42px;flex-shrink:0">Send</button>
+          </div>
         </div>
       </div>
     </div>
@@ -553,9 +569,10 @@ let dashData = null;
 // Navigation
 // ===========================================================================
 function goto(page) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.display = 'none'; });
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-' + page).classList.add('active');
+  const el = document.getElementById('page-' + page);
+  if (el) { el.style.display = ''; el.classList.add('active'); }
   document.querySelectorAll('.nav-item').forEach(n => {
     if (n.textContent.toLowerCase().includes(page.slice(0,4))) n.classList.add('active');
   });
@@ -565,6 +582,10 @@ function goto(page) {
   if (page === 'reflections') loadReflections();
   if (page === 'journal') { loadJournal(); initJournalDate(); }
   if (page === 'setup') loadSetupState();
+  if (page === 'coach') {
+    loadSessionList();
+    if (!_currentSessionId) _currentSessionId = _newSessionId();
+  }
 }
 
 // ===========================================================================
@@ -743,7 +764,81 @@ async function loadCalendar() {
 // ===========================================================================
 // AI Coach
 // ===========================================================================
+// ---------------------------------------------------------------------------
+// Chat session management
+// ---------------------------------------------------------------------------
+let _currentSessionId = null;
+
+function _newSessionId() {
+  return 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+}
+
+function newChat() {
+  _currentSessionId = _newSessionId();
+  chatHistory = [];
+  document.getElementById('chat-messages').innerHTML = '';
+  document.getElementById('chat-image-preview').innerHTML = '';
+  _attachedImages = [];
+  // deactivate all session items
+  document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
+}
+
+async function loadSession(sessionId) {
+  try {
+    const data = await api(`/ai/sessions/${sessionId}`);
+    _currentSessionId = sessionId;
+    chatHistory = data.messages || [];
+    const box = document.getElementById('chat-messages');
+    box.innerHTML = '';
+    chatHistory.forEach(m => {
+      if (m.role === 'user') {
+        const content = typeof m.content === 'string' ? m.content :
+          (m.content.find ? (m.content.find(b => b.type === 'text')?.text || '') : '');
+        appendMsg('user', content);
+      } else if (m.role === 'assistant') {
+        appendMsg('assistant', typeof m.content === 'string' ? m.content : '');
+      }
+    });
+    document.querySelectorAll('.session-item').forEach(el => {
+      el.classList.toggle('active', el.dataset.id === sessionId);
+    });
+  } catch(e) {
+    toast('Σφάλμα φόρτωσης: ' + e.message, 'error');
+  }
+}
+
+async function deleteSession(sessionId, e) {
+  e.stopPropagation();
+  try {
+    await fetch(`/api/ai/sessions/${sessionId}`, { method: 'DELETE' });
+    if (_currentSessionId === sessionId) newChat();
+    loadSessionList();
+  } catch {}
+}
+
+async function loadSessionList() {
+  try {
+    const sessions = await api('/ai/sessions');
+    const el = document.getElementById('session-list');
+    if (!sessions.length) {
+      el.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:4px">Καμία συνομιλία ακόμα</div>';
+      return;
+    }
+    el.innerHTML = sessions.map(s => {
+      const date = s.updated_at ? s.updated_at.slice(0,10) : '';
+      const active = s.session_id === _currentSessionId ? ' active' : '';
+      return `<div class="session-item${active}" data-id="${s.session_id}" onclick="loadSession('${s.session_id}')">
+        <div class="session-title">${s.title || 'Συνομιλία'}</div>
+        <div class="session-date">${date} · ${s.message_count} μηνύματα</div>
+        <button class="session-del" onclick="deleteSession('${s.session_id}', event)" title="Διαγραφή">✕</button>
+      </div>`;
+    }).join('');
+  } catch {}
+}
+
+// ---------------------------------------------------------------------------
 // attached images: [{base64, mediaType, name}]
+// ---------------------------------------------------------------------------
 let _attachedImages = [];
 
 function chatKey(e) {
@@ -818,6 +913,7 @@ async function sendChat() {
     appendMsg('user', msg);
   }
 
+  if (!_currentSessionId) _currentSessionId = _newSessionId();
   chatHistory.push({ role: 'user', content: userContent });
 
   const btn = document.getElementById('chat-send-btn');
@@ -831,7 +927,7 @@ async function sendChat() {
     const res = await fetch('/api/ai/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: chatHistory })
+      body: JSON.stringify({ messages: chatHistory, session_id: _currentSessionId })
     });
 
     const reader = res.body.getReader();
@@ -857,6 +953,8 @@ async function sendChat() {
       }
     }
     chatHistory.push({ role: 'assistant', content: fullText });
+    // Refresh session list sidebar
+    loadSessionList();
   } catch(e) {
     aiMsgEl.querySelector('.msg-content').textContent = 'Error: ' + e.message;
   }
@@ -1280,7 +1378,9 @@ async function syncIntervals() {
 }
 
 async function boot() {
-  // Check if setup needed
+  // Hide all pages first
+  document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+
   try {
     const state = await api('/setup/state');
     if (!state.profile_exists) {
@@ -1288,9 +1388,9 @@ async function boot() {
       return;
     }
     updateConnDots(state);
-    loadDashboard();
+    goto('dashboard');
   } catch {
-    loadDashboard();
+    goto('dashboard');
   }
 }
 

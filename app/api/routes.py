@@ -287,6 +287,7 @@ async def sync_strava(request: Request):
 
 class ChatRequest(BaseModel):
     messages: list[dict]
+    session_id: Optional[str] = None
 
 
 class CommandRequest(BaseModel):
@@ -298,6 +299,8 @@ class CommandRequest(BaseModel):
 def ai_chat(req: ChatRequest):
     try:
         response = ai.chat(req.messages)
+        if req.session_id:
+            fs.save_chat_session(req.session_id, req.messages + [{"role": "assistant", "content": response}])
         return {"response": response}
     except Exception as e:
         raise HTTPException(500, str(e))
@@ -306,15 +309,50 @@ def ai_chat(req: ChatRequest):
 @router.post("/ai/chat/stream")
 async def ai_chat_stream(req: ChatRequest):
     """SSE streaming endpoint."""
+    collected = []
+
     def generate():
         try:
             for chunk in ai.stream_chat(req.messages):
+                collected.append(chunk)
                 yield f"data: {json.dumps({'text': chunk})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
         yield "data: [DONE]\n\n"
+        # Save session after streaming
+        if req.session_id:
+            full_response = "".join(collected)
+            fs.save_chat_session(req.session_id, req.messages + [{"role": "assistant", "content": full_response}])
 
     return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+@router.get("/ai/sessions")
+def list_sessions():
+    return fs.list_chat_sessions()
+
+
+@router.get("/ai/sessions/{session_id}")
+def get_session(session_id: str):
+    data = fs.get_chat_session(session_id)
+    if data is None:
+        raise HTTPException(404, "Session not found")
+    return data
+
+
+@router.delete("/ai/sessions/{session_id}")
+def delete_session(session_id: str):
+    fs.delete_chat_session(session_id)
+    return {"ok": True}
+
+
+@router.post("/ai/command")
+def ai_command(req: CommandRequest):
+    try:
+        response = ai.run_command(req.command, req.args)
+        return {"response": response}
+    except Exception as e:
+        raise HTTPException(500, str(e))
 
 
 @router.post("/ai/command")
