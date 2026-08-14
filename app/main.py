@@ -42,10 +42,23 @@ if static_dir.exists():
 
 
 @app.get("/", include_in_schema=False)
+async def serve_index():
+    index = static_dir / "index.html"
+    if index.exists():
+        return FileResponse(str(index))
+    return {"message": "AthleteOS API running. Frontend not found."}
+
+@app.get("/tracker", include_in_schema=False)
+async def serve_tracker():
+    """Serve the Live Tracker page."""
+    tracker = static_dir / "tracker.html"
+    if tracker.exists():
+        return FileResponse(str(tracker))
+    return {"error": "Tracker not found"}
+
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_spa(full_path: str = ""):
     """Serve the SPA for all non-API routes."""
-    # Don't catch API routes
     if full_path.startswith("api/") or full_path == "docs":
         from fastapi.responses import JSONResponse
         return JSONResponse({"error": "Not found"}, status_code=404)

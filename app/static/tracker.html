@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Live Tracker — AthleteOS</title>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --card: #161616;
+    --border: #2a2a2a;
+    --accent: #ff8c00;
+    --text: #f0f0f0;
+    --muted: #666;
+    --good: #22c55e;
+    --bad: #ef4444;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; }
+
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    background: var(--card);
+  }
+  header a { color: var(--muted); text-decoration: none; font-size: 13px; }
+  header a:hover { color: var(--text); }
+  header .sep { color: var(--border); }
+  header h1 { font-size: 16px; font-weight: 600; }
+  .accent { color: var(--accent); }
+
+  .main { display: flex; flex: 1; gap: 0; overflow: hidden; }
+
+  /* Left panel — video */
+  .video-panel {
+    flex: 1; position: relative; background: #000;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #video { display: none; }
+  #canvas { max-width: 100%; max-height: 100%; }
+
+  .placeholder {
+    display: flex; flex-direction: column; align-items: center; gap: 16px;
+    color: var(--muted); font-size: 14px; text-align: center;
+  }
+  .placeholder .icon { font-size: 64px; }
+
+  /* Overlays on canvas */
+  .overlay-stats {
+    position: absolute; top: 16px; left: 16px;
+    display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+  }
+  .stat-chip {
+    background: rgba(0,0,0,.75); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 14px;
+    font-size: 13px; backdrop-filter: blur(4px);
+  }
+  .stat-chip .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing:.05em }
+  .stat-chip .value { font-size: 28px; font-weight: 700; line-height: 1; }
+  .stat-chip .value.good { color: var(--good); }
+  .stat-chip .value.bad { color: var(--bad); }
+  .stat-chip .value.accent { color: var(--accent); }
+
+  .progress-bar-wrap {
+    position: absolute; right: 16px; top: 16px; bottom: 16px;
+    width: 28px; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    pointer-events: none;
+  }
+  .progress-bar-bg {
+    flex: 1; width: 16px; background: rgba(255,255,255,.1);
+    border-radius: 8px; overflow: hidden; position: relative;
+  }
+  .progress-bar-fill {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: var(--accent); border-radius: 8px;
+    transition: height .1s;
+  }
+  .progress-pct { font-size: 11px; color: var(--muted); }
+
+  /* Right panel — controls */
+  .ctrl-panel {
+    width: 280px; flex-shrink: 0; background: var(--card);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column; padding: 20px; gap: 16px;
+    overflow-y: auto;
+  }
+  .ctrl-panel h2 { font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing:.05em }
+
+  .ex-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ex-btn {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 8px; cursor: pointer;
+    font-size: 12px; color: var(--text); text-align: center;
+    transition: border-color .15s, background .15s;
+  }
+  .ex-btn:hover { border-color: var(--accent); }
+  .ex-btn.active { border-color: var(--accent); background: rgba(255,140,0,.1); color: var(--accent); }
+  .ex-btn .ex-icon { font-size: 22px; margin-bottom: 4px; }
+
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 12px; color: var(--muted); }
+  .form-group input[type=number] {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 12px; color: var(--text);
+    font-size: 14px; width: 100%;
+  }
+
+  .btn {
+    padding: 10px 16px; border-radius: 8px; border: 1px solid var(--border);
+    cursor: pointer; font-size: 14px; font-weight: 500;
+    background: var(--bg); color: var(--text); width: 100%;
+    transition: background .15s, border-color .15s;
+  }
+  .btn:hover { background: #222; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #000; }
+  .btn-primary:hover { background: #e07b00; }
+  .btn-danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+  .btn-danger:hover { background: #c53030; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .divider { height: 1px; background: var(--border); }
+
+  .session-stats {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .s-stat {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px; text-align: center;
+  }
+  .s-stat .sv { font-size: 22px; font-weight: 700; color: var(--accent); }
+  .s-stat .sl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .feedback-box {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px; font-size: 13px;
+    min-height: 48px; transition: border-color .3s;
+  }
+  .feedback-box.good { border-color: var(--good); color: var(--good); }
+  .feedback-box.bad { border-color: var(--bad); color: var(--bad); }
+
+  .save-result {
+    font-size: 12px; color: var(--good); text-align: center; display: none;
+  }
+
+  .tips { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .tips strong { color: var(--text); }
+
+  #status-msg { font-size: 12px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/">← AthleteOS</a>
+  <span class="sep">›</span>
+  <h1>🎯 Live Tracker <span class="accent">beta</span></h1>
+</header>
+
+<div class="main">
+  <!-- Video feed -->
+  <div class="video-panel" id="video-panel">
+    <div class="placeholder" id="placeholder">
+      <div class="icon">📷</div>
+      <div>Επίλεξε άσκηση και πάτα<br><strong>Έναρξη</strong> για να ξεκινήσει το tracking</div>
+    </div>
+    <video id="video" playsinline></video>
+    <canvas id="canvas" style="display:none"></canvas>
+
+    <!-- Live stats overlay -->
+    <div class="overlay-stats" id="overlay-stats" style="display:none">
+      <div class="stat-chip">
+        <div class="label">Reps</div>
+        <div class="value accent" id="ov-reps">0</div>
+      </div>
+      <div class="stat-chip">
+        <div class="label">Στόχος</div>
+        <div class="value" id="ov-target">—</div>
+      </div>
+      <div class="stat-chip">
+        <div class="label">Φόρμα</div>
+        <div class="value good" id="ov-form">✓</div>
+      </div>
+    </div>
+
+    <!-- Progress bar -->
+    <div class="progress-bar-wrap" id="progress-wrap" style="display:none">
+      <div class="progress-pct" id="prog-pct">0%</div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" id="prog-fill" style="height:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="ctrl-panel">
+    <div>
+      <h2 style="margin-bottom:10px">Άσκηση</h2>
+      <div class="ex-grid">
+        <div class="ex-btn active" onclick="selectEx(this,'pushup')" data-ex="pushup">
+          <div class="ex-icon">💪</div>Push-Ups
+        </div>
+        <div class="ex-btn" onclick="selectEx(this,'squat')" data-ex="squat">
+          <div class="ex-icon">🦵</div>Squats
+        </div>
+        <div class="ex-btn" onclick="selectEx(this,'curl')" data-ex="curl">
+          <div class="ex-icon">🏋️</div>Bicep Curls
+        </div>
+        <div class="ex-btn" onclick="selectEx(this,'shoulder')" data-ex="shoulder">
+          <div class="ex-icon">🤸</div>Shoulder Press
+        </div>
+        <div class="ex-btn" onclick="selectEx(this,'dip')" data-ex="dip">
+          <div class="ex-icon">⬇️</div>Tricep Dips
+        </div>
+        <div class="ex-btn" onclick="selectEx(this,'lateral')" data-ex="lateral">
+          <div class="ex-icon">↔️</div>Lateral Raise
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="form-group">
+      <label>Στόχος reps</label>
+      <input type="number" id="target-reps" value="10" min="1" max="100"/>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button class="btn btn-primary" id="btn-start" onclick="startTracking()">▶ Έναρξη</button>
+      <button class="btn btn-danger" id="btn-stop" onclick="stopTracking()" style="display:none">⏹ Διακοπή</button>
+      <button class="btn" id="btn-save" onclick="saveSession()" style="display:none">💾 Αποθήκευση session</button>
+    </div>
+
+    <div id="status-msg">Έτοιμο</div>
+
+    <div class="divider"></div>
+
+    <h2 style="margin-bottom:8px">Session</h2>
+    <div class="session-stats">
+      <div class="s-stat"><div class="sv" id="ss-reps">0</div><div class="sl">Reps</div></div>
+      <div class="s-stat"><div class="sv" id="ss-sets">0</div><div class="sl">Sets</div></div>
+      <div class="s-stat"><div class="sv" id="ss-good">0%</div><div class="sl">Good Form</div></div>
+      <div class="s-stat"><div class="sv" id="ss-time">0'</div><div class="sl">Χρόνος</div></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <h2 style="margin-bottom:8px">Feedback</h2>
+    <div class="feedback-box" id="feedback-box">Επίλεξε άσκηση και ξεκίνα.</div>
+
+    <div class="save-result" id="save-result">✓ Session αποθηκεύτηκε!</div>
+
+    <div class="divider"></div>
+
+    <div class="tips" id="tips">
+      <strong>Push-Ups</strong><br>
+      Κράτα το σώμα σε ευθεία γραμμή. Κατέβα μέχρι το στήθος να αγγίξει σχεδόν το έδαφος.
+      Κράτα τους αγκώνες κοντά στο σώμα.
+    </div>
+  </div>
+</div>
+
+<!-- MediaPipe -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+
+<script>
+// ---------------------------------------------------------------------------
+// Exercise definitions — translated from Python scripts
+// landmarks: https://developers.google.com/mediapipe/solutions/vision/pose_landmarker
+// ---------------------------------------------------------------------------
+const EXERCISES = {
+  pushup: {
+    name: 'Push-Ups',
+    // left shoulder(11), left elbow(13), left wrist(15)
+    p1: 11, p2: 13, p3: 15,
+    low: 70, high: 160,
+    // dir 0=up, 1=down; count when coming back up
+    countOn: 'up',
+    tips: '<strong>Push-Ups</strong><br>Κράτα το σώμα σε ευθεία. Κατέβα μέχρι το στήθος να αγγίξει σχεδόν το έδαφος. Αγκώνες κοντά στο σώμα.',
+    formCheck: (angle) => angle > 60 ? null : 'Κατέβα περισσότερο!'
+  },
+  squat: {
+    name: 'Squats',
+    // left hip(23), left knee(25), left ankle(27)
+    p1: 23, p2: 25, p3: 27,
+    low: 70, high: 160,
+    countOn: 'up',
+    tips: '<strong>Squats</strong><br>Γόνατα πάνω από τα δάχτυλα. Πλάτη ίσια. Κατέβα μέχρι μηροί παράλληλοι με το έδαφος.',
+    formCheck: (angle) => angle > 75 ? null : 'Βαθύτερα!'
+  },
+  curl: {
+    name: 'Bicep Curls',
+    // left shoulder(11), left elbow(13), left wrist(15)
+    p1: 11, p2: 13, p3: 15,
+    low: 30, high: 160,
+    countOn: 'up',
+    tips: '<strong>Bicep Curls</strong><br>Αγκώνες σταθεροί στα πλευρά. Μην κουνάς τους ώμους. Πλήρης ROM — κατέβα τελείως.',
+    formCheck: (angle) => angle < 50 ? null : 'Ανέβα ψηλότερα!'
+  },
+  shoulder: {
+    name: 'Shoulder Press',
+    // left elbow(13), left shoulder(11), left hip(23)
+    p1: 13, p2: 11, p3: 23,
+    low: 50, high: 160,
+    countOn: 'up',
+    tips: '<strong>Shoulder Press</strong><br>Πιέσε ψηλά μέχρι τα χέρια να ισιώσουν. Μην τεντώνεις την πλάτη προς τα πίσω.',
+    formCheck: (angle) => angle > 140 ? null : 'Ανέβα ψηλότερα!'
+  },
+  dip: {
+    name: 'Tricep Dips',
+    // left shoulder(11), left elbow(13), left wrist(15)
+    p1: 11, p2: 13, p3: 15,
+    low: 60, high: 160,
+    countOn: 'up',
+    tips: '<strong>Tricep Dips</strong><br>Κατέβα αργά. Αγκώνες να κλείνουν προς τα πίσω, όχι στα πλάγια. Στήθος ψηλά.',
+    formCheck: (angle) => angle > 55 ? null : 'Κατέβα βαθύτερα!'
+  },
+  lateral: {
+    name: 'Lateral Raise',
+    // left hip(23), left shoulder(11), left elbow(13)
+    p1: 23, p2: 11, p3: 13,
+    low: 10, high: 90,
+    countOn: 'up',
+    tips: '<strong>Lateral Raise</strong><br>Σήκωσε τα χέρια στο ύψος των ώμων. Ελαφρά κλίση μπρος. Αργές κινήσεις — μην κάνεις ώθηση.',
+    formCheck: (angle) => angle > 75 ? null : 'Ανέβα ψηλότερα!'
+  }
+};
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+let currentEx = 'pushup';
+let pose = null;
+let camera = null;
+let tracking = false;
+
+let repCount = 0;
+let setCount = 0;
+let dir = 0; // 0=start position, 1=moved
+let goodFrames = 0;
+let totalFrames = 0;
+let sessionStart = null;
+let sessionData = [];
+
+// ---------------------------------------------------------------------------
+// UI helpers
+// ---------------------------------------------------------------------------
+function selectEx(el, ex) {
+  document.querySelectorAll('.ex-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  currentEx = ex;
+  document.getElementById('tips').innerHTML = EXERCISES[ex].tips;
+  resetCounts();
+}
+
+function resetCounts() {
+  repCount = 0; dir = 0; goodFrames = 0; totalFrames = 0;
+  updateUI();
+}
+
+function updateUI() {
+  document.getElementById('ov-reps').textContent = repCount;
+  document.getElementById('ov-target').textContent = document.getElementById('target-reps').value;
+  document.getElementById('ss-reps').textContent = repCount;
+  document.getElementById('ss-sets').textContent = setCount;
+  const pct = totalFrames > 0 ? Math.round(goodFrames / totalFrames * 100) : 0;
+  document.getElementById('ss-good').textContent = pct + '%';
+  if (sessionStart) {
+    const mins = Math.floor((Date.now() - sessionStart) / 60000);
+    document.getElementById('ss-time').textContent = mins + "'";
+  }
+}
+
+function setFeedback(msg, cls) {
+  const el = document.getElementById('feedback-box');
+  el.textContent = msg;
+  el.className = 'feedback-box ' + (cls || '');
+  const formEl = document.getElementById('ov-form');
+  if (cls === 'good') { formEl.textContent = '✓'; formEl.className = 'value good'; }
+  else if (cls === 'bad') { formEl.textContent = '✗'; formEl.className = 'value bad'; }
+}
+
+function setProgress(per) {
+  document.getElementById('prog-fill').style.height = per + '%';
+  document.getElementById('prog-pct').textContent = Math.round(per) + '%';
+}
+
+function setStatus(msg) {
+  document.getElementById('status-msg').textContent = msg;
+}
+
+// ---------------------------------------------------------------------------
+// Angle calculation (same as Python)
+// ---------------------------------------------------------------------------
+function calcAngle(a, b, c) {
+  const radians = Math.atan2(c[1] - b[1], c[0] - b[0]) - Math.atan2(a[1] - b[1], a[0] - b[0]);
+  let angle = Math.abs(radians * 180 / Math.PI);
+  if (angle > 180) angle = 360 - angle;
+  return angle;
+}
+
+function interp(val, inLow, inHigh, outLow, outHigh) {
+  return outLow + (val - inLow) / (inHigh - inLow) * (outHigh - outLow);
+}
+
+// ---------------------------------------------------------------------------
+// MediaPipe result handler
+// ---------------------------------------------------------------------------
+function onResults(results) {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const video = document.getElementById('video');
+
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+
+  ctx.save();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(results.image, 0, 0, canvas.width, canvas.height);
+
+  if (!results.poseLandmarks) {
+    ctx.restore();
+    setFeedback('Δεν βλέπω σώμα — σταθείς μπροστά στην κάμερα.', 'bad');
+    return;
+  }
+
+  // Draw skeleton
+  drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, { color: '#444', lineWidth: 2 });
+  drawLandmarks(ctx, results.poseLandmarks, { color: '#ff8c00', lineWidth: 1, radius: 4 });
+
+  if (!tracking) { ctx.restore(); return; }
+
+  const ex = EXERCISES[currentEx];
+  const lm = results.poseLandmarks;
+
+  const a = [lm[ex.p1].x, lm[ex.p1].y];
+  const b = [lm[ex.p2].x, lm[ex.p2].y];
+  const c = [lm[ex.p3].x, lm[ex.p3].y];
+
+  // Check visibility
+  if (lm[ex.p1].visibility < 0.5 || lm[ex.p2].visibility < 0.5 || lm[ex.p3].visibility < 0.5) {
+    setFeedback('Δεν βλέπω καθαρά τα σημεία — προσάρμοσε τη θέση σου.', 'bad');
+    ctx.restore();
+    return;
+  }
+
+  const angle = calcAngle(a, b, c);
+  const per = Math.min(100, Math.max(0, interp(angle, ex.low, ex.high, 0, 100)));
+
+  setProgress(per);
+
+  // Count reps
+  const target = parseInt(document.getElementById('target-reps').value);
+  if (per >= 97) { // top position
+    if (dir === 1) {
+      repCount++;
+      dir = 0;
+      sessionData.push({ rep: repCount, angle, timestamp: Date.now() });
+      if (repCount >= target) {
+        setFeedback(`🎉 Ωραία! Ολοκλήρωσες ${repCount} reps!`, 'good');
+        setCount++;
+        repCount = 0; dir = 0;
+        document.getElementById('ss-sets').textContent = setCount;
+      }
+    }
+  } else if (per <= 3) { // bottom position
+    if (dir === 0) dir = 1;
+  }
+
+  // Form check
+  totalFrames++;
+  const formErr = ex.formCheck ? ex.formCheck(angle) : null;
+  if (formErr) {
+    setFeedback('⚠️ ' + formErr, 'bad');
+  } else {
+    goodFrames++;
+    setFeedback('✓ Καλή φόρμα!', 'good');
+  }
+
+  // Draw angle on canvas
+  const px = Math.round(lm[ex.p2].x * canvas.width);
+  const py = Math.round(lm[ex.p2].y * canvas.height);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 18px sans-serif';
+  ctx.fillText(Math.round(angle) + '°', px + 10, py);
+
+  // Draw rep counter
+  ctx.fillStyle = '#ff8c00';
+  ctx.font = 'bold 36px sans-serif';
+  ctx.fillText(`${repCount} / ${target}`, 20, 50);
+
+  ctx.restore();
+  updateUI();
+}
+
+// ---------------------------------------------------------------------------
+// Start / stop
+// ---------------------------------------------------------------------------
+async function startTracking() {
+  setStatus('Φόρτωση MediaPipe…');
+
+  pose = new Pose({ locateFile: file => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}` });
+  pose.setOptions({
+    modelComplexity: 1,
+    smoothLandmarks: true,
+    enableSegmentation: false,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
+  });
+  pose.onResults(onResults);
+
+  const video = document.getElementById('video');
+  const canvas = document.getElementById('canvas');
+  const placeholder = document.getElementById('placeholder');
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+    video.srcObject = stream;
+    await video.play();
+
+    placeholder.style.display = 'none';
+    canvas.style.display = 'block';
+    document.getElementById('overlay-stats').style.display = 'flex';
+    document.getElementById('progress-wrap').style.display = 'flex';
+
+    camera = new Camera(video, {
+      onFrame: async () => { await pose.send({ image: video }); },
+      width: 1280, height: 720
+    });
+    await camera.start();
+
+    tracking = true;
+    sessionStart = Date.now();
+    resetCounts();
+
+    document.getElementById('btn-start').style.display = 'none';
+    document.getElementById('btn-stop').style.display = 'block';
+    setStatus('Tracking ενεργό ▶');
+    setFeedback('Έτοιμο — ξεκίνα!', '');
+  } catch (e) {
+    setStatus('❌ ' + (e.message || 'Σφάλμα κάμερας'));
+    setFeedback('Έλεγξε άδεια κάμερας στο browser.', 'bad');
+  }
+}
+
+function stopTracking() {
+  tracking = false;
+  if (camera) { camera.stop(); camera = null; }
+  if (pose) { pose.close(); pose = null; }
+  const video = document.getElementById('video');
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach(t => t.stop());
+    video.srcObject = null;
+  }
+  document.getElementById('canvas').style.display = 'none';
+  document.getElementById('placeholder').style.display = 'flex';
+  document.getElementById('overlay-stats').style.display = 'none';
+  document.getElementById('progress-wrap').style.display = 'none';
+  document.getElementById('btn-start').style.display = 'block';
+  document.getElementById('btn-stop').style.display = 'none';
+  document.getElementById('btn-save').style.display = 'block';
+  setStatus('Διακόπηκε');
+  updateUI();
+}
+
+// ---------------------------------------------------------------------------
+// Save session
+// ---------------------------------------------------------------------------
+async function saveSession() {
+  const ex = EXERCISES[currentEx];
+  const duration = sessionStart ? Math.round((Date.now() - sessionStart) / 1000) : 0;
+  const pct = totalFrames > 0 ? Math.round(goodFrames / totalFrames * 100) : 0;
+
+  const payload = {
+    exercise: ex.name,
+    sets: setCount,
+    reps_per_set: parseInt(document.getElementById('target-reps').value),
+    total_reps: sessionData.length,
+    good_form_pct: pct,
+    duration_seconds: duration,
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    const res = await fetch('/api/tracker/save-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (res.ok) {
+      document.getElementById('save-result').style.display = 'block';
+      setTimeout(() => document.getElementById('save-result').style.display = 'none', 3000);
+    }
+  } catch(e) {
+    console.error('Save failed', e);
+  }
+}
+</script>
+</body>
+</html>

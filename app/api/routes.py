@@ -307,6 +307,49 @@ async def extract_and_save(request: Request):
 
 
 # ---------------------------------------------------------------------------
+# Live Tracker — save session
+# ---------------------------------------------------------------------------
+
+class TrackerSessionRequest(BaseModel):
+    exercise: str
+    sets: int
+    reps_per_set: int
+    total_reps: int
+    good_form_pct: int
+    duration_seconds: int
+    timestamp: str
+
+
+@router.post("/tracker/save-session")
+def save_tracker_session(req: TrackerSessionRequest):
+    """Save a live tracker session as a journal entry."""
+    import json
+    sessions_file = fs.DATA_DIR / "tracker-sessions.json"
+    sessions = []
+    if sessions_file.exists():
+        try:
+            sessions = json.loads(sessions_file.read_text())
+        except Exception:
+            sessions = []
+    sessions.append(req.dict())
+    sessions_file.write_text(json.dumps(sessions, indent=2))
+    return {"ok": True, "saved": req.dict()}
+
+
+@router.get("/tracker/sessions")
+def get_tracker_sessions():
+    """Return all saved tracker sessions."""
+    import json
+    sessions_file = fs.DATA_DIR / "tracker-sessions.json"
+    if not sessions_file.exists():
+        return {"sessions": []}
+    try:
+        return {"sessions": json.loads(sessions_file.read_text())}
+    except Exception:
+        return {"sessions": []}
+
+
+# ---------------------------------------------------------------------------
 # Analyze Exercise
 # ---------------------------------------------------------------------------
 
