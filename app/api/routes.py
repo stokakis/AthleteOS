@@ -307,6 +307,68 @@ async def extract_and_save(request: Request):
 
 
 # ---------------------------------------------------------------------------
+# Analyze Exercise
+# ---------------------------------------------------------------------------
+
+class AnalyzeExerciseRequest(BaseModel):
+    exercise: str
+    question: Optional[str] = None  # e.g. "how do I do it?" or "what muscles?"
+
+
+@router.post("/ai/analyze-exercise")
+def analyze_exercise(req: AnalyzeExerciseRequest):
+    """Look up exercise in library and return AI explanation."""
+    import re
+
+    # Load full exercise library
+    lib = fs.read_file(fs.DATA_DIR / "exercise-library.md") or ""
+
+    # Find the exercise block in the library
+    pattern = rf'### {re.escape(req.exercise)}\n(.*?)(?=\n### |\n## |\Z)'
+    match = re.search(pattern, lib, re.DOTALL | re.IGNORECASE)
+
+    if match:
+        exercise_data = f"### {req.exercise}\n{match.group(1).strip()}"
+    else:
+        # Fuzzy search — find closest name
+        names = re.findall(r'### (.+)', lib)
+        close = [n for n in names if req.exercise.lower() in n.lower() or n.lower() in req.exercise.lower()]
+        if close:
+            pattern2 = rf'### {re.escape(close[0])}\n(.*?)(?=\n### |\n## |\Z)'
+            m2 = re.search(pattern2, lib, re.DOTALL)
+            exercise_data = f"### {close[0]}\n{m2.group(1).strip()}" if m2 else f"Exercise: {req.exercise} (not found in library)"
+        else:
+            exercise_data = f"Exercise: {req.exercise} (not in home equipment library)"
+
+    # Load athlete profile for personalization
+    profile = fs.get_profile() or ""
+
+    question = req.question or "Explain how to perform this exercise correctly, common mistakes to avoid, and any tips specific to my profile."
+
+    system = """You are Athlete OS, an AI personal trainer.
+When asked about an exercise, provide:
+1. How to perform it step by step (clear cues)
+2. Key muscles worked
+3. Most common mistakes and how to avoid them
+4. Progressions (easier → harder)
+5. Any notes specific to the athlete's profile (injuries, equipment, goals)
+Be concise but complete. Use Greek if the athlete writes in Greek."""
+
+    messages = [
+        {
+            "role": "user",
+            "content": f"Athlete Profile:\n{profile}\n\nExercise Data:\n{exercise_data}\n\nQuestion: {question}"
+        }
+    ]
+
+    try:
+        response = ai.chat(messages, system_override=system)
+        return {"ok": True, "exercise": req.exercise, "analysis": response}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+# ---------------------------------------------------------------------------
 # Reflections
 # ---------------------------------------------------------------------------
 

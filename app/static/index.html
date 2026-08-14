@@ -274,6 +274,29 @@ input[type=range]{padding:0;height:4px;accent-color:var(--accent)}
             <span class="cmd-btn" onclick="sendCmd('/journal')">/journal</span>
             <span class="cmd-btn" onclick="sendCmd('/set-goals')">/set-goals</span>
             <span class="cmd-btn" onclick="sendCmd('/push-workouts')">/push-workouts</span>
+            <span class="cmd-btn" onclick="openAnalyzeModal()" style="background:rgba(255,140,0,.15);border-color:rgba(255,140,0,.4)">🔍 /analyze-exercise</span>
+          </div>
+
+          <!-- Analyze Exercise Modal -->
+          <div id="analyze-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;align-items:center;justify-content:center">
+            <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:28px;width:460px;max-width:95vw">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+                <span style="font-size:16px;font-weight:600">🔍 Analyze Exercise</span>
+                <span onclick="closeAnalyzeModal()" style="cursor:pointer;color:var(--muted);font-size:20px">✕</span>
+              </div>
+              <div class="form-group" style="margin-bottom:12px">
+                <label>Exercise name</label>
+                <input id="analyze-exercise-name" placeholder="e.g. Romanian Deadlift, Pull-Ups…" style="width:100%"/>
+              </div>
+              <div class="form-group" style="margin-bottom:20px">
+                <label>Question (optional)</label>
+                <input id="analyze-question" placeholder="e.g. Πώς να το κάνω σωστά; Τι μύες δουλεύει;" style="width:100%"/>
+              </div>
+              <div style="display:flex;gap:10px">
+                <button class="btn btn-primary" onclick="submitAnalyze()" style="flex:1">Analyze</button>
+                <button class="btn" onclick="closeAnalyzeModal()" style="flex:1">Cancel</button>
+              </div>
+            </div>
           </div>
           <div id="chat-messages" style="flex:1;overflow-y:auto;min-height:0"></div>
           <div id="chat-image-preview" class="chat-image-preview"></div>
@@ -908,6 +931,66 @@ function sendCmd(cmd) {
   document.getElementById('chat-input').value = cmd;
   sendChat();
 }
+
+// ---------------------------------------------------------------------------
+// Analyze Exercise modal
+// ---------------------------------------------------------------------------
+function openAnalyzeModal() {
+  const modal = document.getElementById('analyze-modal');
+  modal.style.display = 'flex';
+  document.getElementById('analyze-exercise-name').focus();
+}
+
+function closeAnalyzeModal() {
+  document.getElementById('analyze-modal').style.display = 'none';
+  document.getElementById('analyze-exercise-name').value = '';
+  document.getElementById('analyze-question').value = '';
+}
+
+async function submitAnalyze() {
+  const name = document.getElementById('analyze-exercise-name').value.trim();
+  if (!name) { alert('Γράψε όνομα άσκησης'); return; }
+  const question = document.getElementById('analyze-question').value.trim();
+  closeAnalyzeModal();
+
+  // Show user bubble in chat
+  appendMsg('user', `/analyze-exercise: ${name}${question ? ' — ' + question : ''}`);
+  const thinkEl = appendMsg('ai', '⏳ Αναλύω…');
+
+  try {
+    const res = await fetch('/api/ai/analyze-exercise', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({exercise: name, question: question || null})
+    });
+    const data = await res.json();
+    const contentEl = thinkEl.querySelector('.msg-content') || thinkEl;
+    if (data.ok) {
+      contentEl.innerHTML = renderMd(data.analysis);
+      // Save to current chat session
+      chatHistory.push({role: 'user', content: `/analyze-exercise: ${name}`});
+      chatHistory.push({role: 'assistant', content: data.analysis});
+    } else {
+      contentEl.innerHTML = `<span style="color:var(--danger)">⚠️ ${data.detail || 'Error'}</span>`;
+    }
+  } catch(e) {
+    const contentEl = thinkEl.querySelector('.msg-content') || thinkEl;
+    contentEl.innerHTML = `<span style="color:var(--danger)">⚠️ ${e.message}</span>`;
+  }
+}
+
+// Close modal on backdrop click
+document.addEventListener('click', function(e) {
+  const modal = document.getElementById('analyze-modal');
+  if (modal && e.target === modal) closeAnalyzeModal();
+});
+
+// Enter key in analyze inputs
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && document.getElementById('analyze-modal')?.style.display === 'flex') {
+    submitAnalyze();
+  }
+});
 
 async function sendChat() {
   const input = document.getElementById('chat-input');

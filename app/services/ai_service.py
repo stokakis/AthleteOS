@@ -105,6 +105,23 @@ def _build_context() -> str:
     if profile:
         parts.append(f"## athlete/profile.md\n{profile}")
 
+    # Exercise library — send compact index only to avoid context overflow
+    # Full library is at data/exercise-library.md
+    exercise_lib = fs.read_file(fs.DATA_DIR / "exercise-library.md")
+    if exercise_lib:
+        # Extract just exercise names grouped by section for a compact index
+        import re as _re
+        sections = _re.findall(r'## (.*?)\n(.*?)(?=\n## |\Z)', exercise_lib, _re.DOTALL)
+        index_lines = ["## Exercise Library Index (128 exercises with home equipment)\n"]
+        index_lines.append("Full details available — use exercise names from this list when programming workouts.\n")
+        for section_name, section_body in sections:
+            if section_name.startswith("Note") or section_name.startswith("Exercises Req"):
+                continue
+            names = _re.findall(r'### (.+)', section_body)
+            if names:
+                index_lines.append(f"**{section_name}:** {', '.join(names)}\n")
+        parts.append("\n".join(index_lines))
+
     # Pending workouts — raw markdown table
     pending_md = fs.read_file(fs.OVERVIEW_DIR / "pending.md")
     if pending_md:
@@ -144,13 +161,14 @@ def _build_context() -> str:
     return "\n\n---\n\n".join(parts)
 
 
-def chat(messages: list[dict], stream: bool = False) -> str:
+def chat(messages: list[dict], stream: bool = False, system_override: str = None) -> str:
     """
     Send a conversation to Claude and return the response text.
     messages: list of {"role": "user"|"assistant", "content": str}
+    system_override: if set, use this system prompt instead of the default
     """
     client = _client()
-    system = _get_system_prompt() + "\n\n# Current Athlete Context\n\n" + _build_context()
+    system = system_override if system_override else (_get_system_prompt() + "\n\n# Current Athlete Context\n\n" + _build_context())
 
     response = client.messages.create(
         model=_model(),
