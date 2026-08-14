@@ -995,6 +995,15 @@ async function sendChat() {
         }
       } catch {}
     }
+    // Auto-detect and save profile updates
+    if (fullText.includes('[PROFILE_UPDATE]')) {
+      try {
+        const result = await post('/ai/extract-profile-update', { text: fullText });
+        if (result.updated) {
+          toast('✓ Προφίλ ενημερώθηκε αυτόματα!', 'success');
+        }
+      } catch {}
+    }
   } catch(e) {
     aiMsgEl.querySelector('.msg-content').textContent = 'Error: ' + e.message;
   }

@@ -28,6 +28,20 @@ When commands say "read file X" or "glob files", interpret this as: the contents
 file are already included in the context below. Do not say you "can't read" files —
 the data is already provided.
 
+## CRITICAL: How to update athlete/profile.md in Web App Mode
+
+When the athlete provides information that should be saved to their profile (equipment,
+goals, benchmarks, notes, supplements, etc.), you MUST output a profile update block
+in EXACTLY this format — the web app will detect and save it automatically:
+
+[PROFILE_UPDATE]
+<full updated content of athlete/profile.md here>
+[/PROFILE_UPDATE]
+
+Read the current profile from context, merge the new information, and output the
+complete updated profile inside those tags. Do NOT say "you need to edit it manually"
+or "I can't write files" — just output the block and it will be saved.
+
 ## CRITICAL: How to create workout files in Web App Mode
 
 When commands say "write file X" or "create file Y" for workout sessions, you MUST output

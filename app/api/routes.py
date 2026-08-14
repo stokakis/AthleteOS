@@ -235,6 +235,22 @@ def save_workout(req: SaveWorkoutRequest):
     return {"ok": True, "path": rel_path}
 
 
+@router.post("/ai/extract-profile-update")
+async def extract_profile_update(request: Request):
+    """Detect [PROFILE_UPDATE]...[/PROFILE_UPDATE] in AI response and save."""
+    body = await request.json()
+    text = body.get("text", "")
+    import re
+    match = re.search(r'\[PROFILE_UPDATE\](.*?)\[/PROFILE_UPDATE\]', text, re.DOTALL)
+    if not match:
+        return {"ok": False, "updated": False}
+    content = match.group(1).strip()
+    if not content:
+        return {"ok": False, "updated": False}
+    fs.save_profile(content)
+    return {"ok": True, "updated": True}
+
+
 @router.post("/workouts/extract-and-save")
 async def extract_and_save(request: Request):
     """Extract workout markdown blocks from AI response text and save them."""
