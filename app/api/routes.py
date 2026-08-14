@@ -123,6 +123,34 @@ def test_intervals():
     return intervals.test_connection()
 
 
+@router.get("/intervals/debug")
+def debug_intervals():
+    """Show current Intervals.icu config and test connectivity."""
+    import os
+    athlete_id = os.getenv("INTERVALS_ATHLETE_ID", "")
+    api_key = os.getenv("INTERVALS_API_KEY", "")
+    result = intervals.test_connection()
+    # Fetch last 3 activities as sample
+    sample = []
+    if result.get("ok"):
+        try:
+            from datetime import date, timedelta
+            after = (date.today() - timedelta(days=7)).strftime("%Y-%m-%d")
+            acts = intervals.fetch_activities(after)
+            sample = acts[:3]
+        except Exception as e:
+            sample = [{"error": str(e)}]
+    return {
+        "config": {
+            "athlete_id": athlete_id,
+            "api_key_set": bool(api_key),
+            "api_key_preview": api_key[:6] + "…" if api_key else "NOT SET",
+        },
+        "connection": result,
+        "last_7_days_sample": sample,
+    }
+
+
 @router.post("/intervals/sync")
 async def sync_intervals(request: Request):
     body = await request.json()
