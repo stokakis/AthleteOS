@@ -17,11 +17,29 @@ _CLAUDE_MD_PATH = Path("CLAUDE.md")
 _SYSTEM_PROMPT: Optional[str] = None
 
 
+_WEB_PREAMBLE = """
+# IMPORTANT: Web App Mode
+
+You are running as a web application, NOT as Claude Code. You do NOT have file system tools
+(Read, Write, Edit, Bash). All athlete data files are provided to you below in the
+"Current Athlete Context" section — treat them as the authoritative, up-to-date state.
+
+When commands say "read file X" or "glob files", interpret this as: the contents of that
+file are already included in the context below. Do not say you "can't read" files —
+the data is already provided.
+
+When commands say "write file X" or "create file Y", respond with the full markdown content
+of that file clearly labelled, so the user can see the planned sessions. The web app will
+handle file creation separately.
+
+Stay in character as the AI coach defined in CLAUDE.md. Use the context provided.
+"""
+
 def _get_system_prompt() -> str:
     global _SYSTEM_PROMPT
     if _SYSTEM_PROMPT is None:
         text = _CLAUDE_MD_PATH.read_text(encoding="utf-8") if _CLAUDE_MD_PATH.exists() else ""
-        _SYSTEM_PROMPT = text
+        _SYSTEM_PROMPT = _WEB_PREAMBLE + "\n\n" + text
     return _SYSTEM_PROMPT
 
 
@@ -48,23 +66,41 @@ def _build_context() -> str:
     if profile:
         parts.append(f"## athlete/profile.md\n{profile}")
 
-    pending = fs.list_pending_workouts()
-    if pending:
-        parts.append(f"## Pending workouts (count: {len(pending)})\n" +
-                     json.dumps(pending[:10], indent=2))
+    # Pending workouts — raw markdown table
+    pending_md = fs.read_file(fs.OVERVIEW_DIR / "pending.md")
+    if pending_md:
+        parts.append(f"## overview/pending.md\n{pending_md}")
+    else:
+        pending = fs.list_pending_workouts()
+        if pending:
+            parts.append(f"## Pending workouts (count: {len(pending)})\n" +
+                         json.dumps(pending[:10], indent=2))
+        else:
+            parts.append("## overview/pending.md\nNo pending sessions.")
 
+    # Workout library
+    library = fs.read_file(fs.ATHLETE_DIR / "workout-library.md")
+    if library:
+        parts.append(f"## athlete/workout-library.md\n{library[:3000]}")
+
+    # Strava sync state
+    sync = fs.get_strava_sync()
+    parts.append(f"## overview/strava-sync.json\n{json.dumps(sync, indent=2)}")
+
+    # Latest reflection
     reflection = fs.get_latest_reflection()
     if reflection:
         parts.append(f"## Latest reflection\n{reflection[:2000]}")
 
+    # Recent journals
     journals = fs.list_journal_entries()
     if journals:
-        recent = journals[:3]
-        parts.append(f"## Recent journal entries\n" + json.dumps(recent, indent=2))
+        parts.append(f"## Recent journal entries\n" + json.dumps(journals[:3], indent=2))
 
+    # Consistency log
     consistency = fs.get_consistency_log()
     if consistency:
-        parts.append(f"## Consistency log (excerpt)\n{consistency[:1500]}")
+        parts.append(f"## athlete/consistency-log.md\n{consistency[:1500]}")
 
     return "\n\n---\n\n".join(parts)
 
