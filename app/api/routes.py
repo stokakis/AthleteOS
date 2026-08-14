@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from app.services import file_service as fs
 from app.services import strava_service as strava
+from app.services import intervals_service as intervals
 from app.services import ai_service as ai
 
 router = APIRouter(prefix="/api")
@@ -97,6 +98,54 @@ async def strava_callback(request: Request, code: str = Query(None), error: str 
 @router.post("/setup/test-strava")
 def test_strava():
     return strava.test_strava_connection()
+
+
+# ---------------------------------------------------------------------------
+# Intervals.icu
+# ---------------------------------------------------------------------------
+
+@router.post("/setup/save-intervals")
+async def save_intervals(request: Request):
+    body = await request.json()
+    athlete_id = body.get("athlete_id", "").strip()
+    api_key    = body.get("api_key", "").strip()
+    if not athlete_id or not api_key:
+        raise HTTPException(400, "athlete_id and api_key are required")
+    intervals.save_credentials(athlete_id, api_key)
+    return {"ok": True}
+
+
+@router.post("/setup/test-intervals")
+def test_intervals():
+    return intervals.test_connection()
+
+
+@router.post("/intervals/sync")
+async def sync_intervals(request: Request):
+    body = await request.json()
+    after  = body.get("after")
+    before = body.get("before")
+    if not after:
+        from app.services import file_service as fs2
+        sync = fs2.get_strava_sync()
+        last = sync.get("last_sync")
+        if last:
+            from datetime import datetime, timedelta
+            dt = datetime.fromisoformat(last) - timedelta(days=1)
+            after = dt.strftime("%Y-%m-%d")
+        else:
+            from datetime import date, timedelta
+            after = (date.today() - timedelta(days=30)).strftime("%Y-%m-%d")
+    try:
+        activities = intervals.fetch_activities(after, before)
+        return {"ok": True, "count": len(activities), "activities": activities}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@router.get("/intervals/wellness")
+def get_wellness(date: str = Query(None)):
+    return intervals.get_wellness(date)
 
 
 @router.post("/setup/save-profile")

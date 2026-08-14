@@ -105,8 +105,15 @@ textarea{resize:vertical;min-height:100px}
 .msg-ai .msg-avatar{background:rgba(59,130,246,.2);color:var(--blue)}
 .msg-content{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 15px;font-size:13px;line-height:1.7;flex:1;white-space:pre-wrap}
 .msg-user .msg-content{background:rgba(249,115,22,.07);border-color:rgba(249,115,22,.2)}
-.chat-input-row{display:flex;gap:8px}
-.chat-input-row input{flex:1}
+.chat-input-row{display:flex;gap:8px;align-items:flex-end}
+.chat-input-row textarea{flex:1;resize:none;min-height:42px;max-height:160px;line-height:1.5;padding:10px 12px;overflow-y:auto}
+.chat-attach-btn{background:transparent;border:1px solid var(--border2);border-radius:8px;color:var(--muted);padding:9px 11px;cursor:pointer;font-size:15px;transition:all .15s;flex-shrink:0;height:42px;display:flex;align-items:center}
+.chat-attach-btn:hover{color:var(--accent);border-color:var(--accent)}
+#chat-file-input{display:none}
+.chat-image-preview{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.chat-image-thumb{position:relative;width:60px;height:60px;border-radius:6px;overflow:hidden;border:1px solid var(--border2)}
+.chat-image-thumb img{width:100%;height:100%;object-fit:cover}
+.chat-image-remove{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.7);color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
 .cmd-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 .cmd-btn{background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:6px;color:var(--muted);font-size:11px;padding:4px 10px;cursor:pointer;transition:all .15s}
 .cmd-btn:hover{color:var(--accent);border-color:var(--accent);background:rgba(249,115,22,.06)}
@@ -179,7 +186,7 @@ input[type=range]{padding:0;height:4px;accent-color:var(--accent)}
       <div class="nav-item" onclick="goto('setup')"><span class="nav-icon">◈</span> Setup</div>
     </nav>
     <div class="sidebar-footer">
-      <div class="conn-row" id="conn-strava"><span class="conn-dot" style="background:var(--muted)"></span>Strava</div>
+      <div class="conn-row" id="conn-strava"><span class="conn-dot" style="background:var(--muted)"></span>Intervals.icu</div>
       <div class="conn-row" id="conn-ai"><span class="conn-dot" style="background:var(--muted)"></span>AI Coach</div>
       <div class="conn-row" id="conn-hevy"><span class="conn-dot" style="background:var(--muted)"></span>Hevy</div>
     </div>
@@ -209,7 +216,7 @@ input[type=range]{padding:0;height:4px;accent-color:var(--accent)}
           <div class="card-title">Quick Actions</div>
           <div style="display:flex;flex-direction:column;gap:8px">
             <button class="btn btn-primary" onclick="runCommand('/review')">▶ Weekly Review</button>
-            <button class="btn btn-ghost" onclick="runCommand('/fetch-activities')">↓ Sync Strava</button>
+            <button class="btn btn-ghost" onclick="syncIntervals()">↓ Sync Intervals.icu</button>
             <button class="btn btn-ghost" onclick="goto('journal')">+ Journal Entry</button>
             <button class="btn btn-ghost" onclick="runCommand('/plan-workouts')">⊞ Plan Workouts</button>
           </div>
@@ -253,9 +260,12 @@ input[type=range]{padding:0;height:4px;accent-color:var(--accent)}
           <span class="cmd-btn" onclick="sendCmd('/push-workouts')">/push-workouts</span>
         </div>
         <div id="chat-messages"></div>
+        <div id="chat-image-preview" class="chat-image-preview"></div>
         <div class="chat-input-row">
-          <input id="chat-input" placeholder="Message your coach…" onkeydown="chatKey(event)"/>
-          <button class="btn btn-primary" onclick="sendChat()" id="chat-send-btn">Send</button>
+          <button class="chat-attach-btn" onclick="document.getElementById('chat-file-input').click()" title="Attach image">📎</button>
+          <input type="file" id="chat-file-input" accept="image/*" multiple onchange="handleImageAttach(event)"/>
+          <textarea id="chat-input" placeholder="Message your coach… (Shift+Enter για νέα γραμμή)" onkeydown="chatKey(event)" rows="1" oninput="autoResize(this)"></textarea>
+          <button class="btn btn-primary" onclick="sendChat()" id="chat-send-btn" style="height:42px;flex-shrink:0">Send</button>
         </div>
       </div>
     </div>
@@ -414,42 +424,36 @@ input[type=range]{padding:0;height:4px;accent-color:var(--accent)}
         </div>
       </div>
 
-      <!-- Step 1: Strava -->
+      <!-- Step 1: Intervals.icu -->
       <div class="wizard-body" id="wizard-1" style="display:none">
-        <h3 style="margin-bottom:6px;font-size:16px">Connect Strava</h3>
-        <p style="color:var(--muted);font-size:13px;margin-bottom:20px">Strava sync lets AthleteOS match your activities to planned sessions and generate reflections.</p>
+        <h3 style="margin-bottom:6px;font-size:16px">Connect Intervals.icu</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:20px">Intervals.icu συγχρονίζει τις προπονήσεις σου (από Garmin, Wahoo, Polar κλπ.) και παρέχει δωρεάν API για ανάλυση απόδοσης.</p>
 
         <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:8px;padding:16px;margin-bottom:20px;font-size:13px">
-          <p style="margin-bottom:8px;font-weight:600">You need a free Strava API app:</p>
-          <ol style="padding-left:18px;color:var(--muted);line-height:2">
-            <li>Go to <a href="https://www.strava.com/settings/api" target="_blank">strava.com/settings/api</a></li>
-            <li>Create an app — any name, Website: <code>http://localhost</code></li>
-            <li>Set <strong>Authorization Callback Domain</strong> to your Railway domain (or <code>localhost</code> for local dev)</li>
-            <li>Copy your <strong>Client ID</strong> and <strong>Client Secret</strong> below</li>
+          <p style="margin-bottom:8px;font-weight:600">Βήματα σύνδεσης:</p>
+          <ol style="padding-left:18px;color:var(--muted);line-height:2.2">
+            <li>Πήγαινε στο <a href="https://intervals.icu" target="_blank">intervals.icu</a> και σύνδεσε το Garmin/Wahoo/Strava σου</li>
+            <li>Το <strong>Athlete ID</strong> βρίσκεται στο URL του profile σου: <code>intervals.icu/athlete/<strong>iXXXXXX</strong>/...</code></li>
+            <li>Πήγαινε <strong>Settings → API Key</strong> και αντέγραψε το κλειδί</li>
           </ol>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
           <div class="form-group">
-            <label>Client ID</label>
-            <input id="s-clientid" placeholder="12345"/>
+            <label>Athlete ID</label>
+            <input id="i-athleteid" placeholder="i675727"/>
           </div>
           <div class="form-group">
-            <label>Client Secret</label>
-            <input id="s-secret" type="password" placeholder="abc123…"/>
+            <label>API Key</label>
+            <input id="i-apikey" type="password" placeholder="66lg…"/>
           </div>
         </div>
 
-        <div id="strava-status" style="margin-bottom:16px;display:none"></div>
+        <div id="intervals-status" style="margin-bottom:16px;display:none"></div>
 
         <div style="display:flex;gap:10px">
-          <button class="btn btn-primary" onclick="startStravaOAuth()" id="strava-auth-btn">Connect Strava →</button>
-          <button class="btn btn-ghost" onclick="skipStrava()">Skip for now</button>
-        </div>
-
-        <div id="strava-waiting" style="display:none;margin-top:16px;color:var(--muted);font-size:13px">
-          <div class="spinner" style="display:inline-block;margin-right:8px"></div>
-          Waiting for authorization… (check the popup window)
+          <button class="btn btn-primary" onclick="connectIntervals()">Σύνδεση →</button>
+          <button class="btn btn-ghost" onclick="wstep(2)">Skip for now</button>
         </div>
 
         <div class="wizard-nav" style="margin-top:24px">
@@ -738,7 +742,48 @@ async function loadCalendar() {
 // ===========================================================================
 // AI Coach
 // ===========================================================================
-function chatKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }
+// attached images: [{base64, mediaType, name}]
+let _attachedImages = [];
+
+function chatKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+
+function handleImageAttach(event) {
+  const files = Array.from(event.target.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      const base64 = dataUrl.split(',')[1];
+      const mediaType = file.type;
+      _attachedImages.push({ base64, mediaType, name: file.name });
+      renderImagePreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+  event.target.value = '';
+}
+
+function renderImagePreviews() {
+  const el = document.getElementById('chat-image-preview');
+  el.innerHTML = _attachedImages.map((img, i) => `
+    <div class="chat-image-thumb">
+      <img src="data:${img.mediaType};base64,${img.base64}" alt="${img.name}"/>
+      <button class="chat-image-remove" onclick="removeImage(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function removeImage(i) {
+  _attachedImages.splice(i, 1);
+  renderImagePreviews();
+}
 
 function sendCmd(cmd) {
   document.getElementById('chat-input').value = cmd;
@@ -748,11 +793,31 @@ function sendCmd(cmd) {
 async function sendChat() {
   const input = document.getElementById('chat-input');
   const msg = input.value.trim();
-  if (!msg) return;
+  if (!msg && _attachedImages.length === 0) return;
   input.value = '';
+  input.style.height = 'auto';
 
-  appendMsg('user', msg);
-  chatHistory.push({ role: 'user', content: msg });
+  // Build content — text + images
+  let userContent;
+  if (_attachedImages.length > 0) {
+    userContent = [];
+    _attachedImages.forEach(img => {
+      userContent.push({ type: 'image', source: { type: 'base64', media_type: img.mediaType, data: img.base64 } });
+    });
+    if (msg) userContent.push({ type: 'text', text: msg });
+    // Show in UI
+    const imgHtml = _attachedImages.map(img =>
+      `<img src="data:${img.mediaType};base64,${img.base64}" style="max-width:200px;max-height:160px;border-radius:6px;margin-top:6px;display:block"/>`
+    ).join('');
+    appendMsg('user', (msg ? msg + '\n' : '') + imgHtml, true);
+    _attachedImages = [];
+    renderImagePreviews();
+  } else {
+    userContent = msg;
+    appendMsg('user', msg);
+  }
+
+  chatHistory.push({ role: 'user', content: userContent });
 
   const btn = document.getElementById('chat-send-btn');
   btn.disabled = true;
@@ -799,12 +864,12 @@ async function sendChat() {
   btn.textContent = 'Send';
 }
 
-function appendMsg(role, text) {
+function appendMsg(role, text, rawHtml = false) {
   const el = document.createElement('div');
   el.className = `msg msg-${role}`;
   el.innerHTML = `
     <div class="msg-avatar">${role === 'user' ? 'U' : 'AI'}</div>
-    <div class="msg-content">${text ? renderMd(text) : ''}</div>
+    <div class="msg-content">${rawHtml ? text : (text ? renderMd(text) : '')}</div>
   `;
   document.getElementById('chat-messages').appendChild(el);
   scrollChat();
@@ -1101,7 +1166,35 @@ async function startStravaOAuth() {
   window.addEventListener('message', handler);
 }
 
-function skipStrava() { wstep(2); }
+async function connectIntervals() {
+  const athleteId = document.getElementById('i-athleteid').value.trim();
+  const apiKey    = document.getElementById('i-apikey').value.trim();
+  if (!athleteId || !apiKey) { toast('Συμπλήρωσε Athlete ID και API Key', 'error'); return; }
+
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div>';
+
+  try {
+    await post('/setup/save-intervals', { athlete_id: athleteId, api_key: apiKey });
+    const result = await post('/setup/test-intervals', {});
+    const st = document.getElementById('intervals-status');
+    st.style.display = 'block';
+    if (result.ok) {
+      st.innerHTML = `<span style="color:var(--green)">✓ Συνδέθηκες ως ${result.athlete_name}</span>`;
+      toast('Intervals.icu συνδέθηκε!', 'success');
+      document.getElementById('conn-strava').querySelector('.conn-dot').style.background = 'var(--green)';
+      document.getElementById('conn-strava').childNodes[1].textContent = 'Intervals.icu';
+    } else {
+      st.innerHTML = `<span style="color:var(--red)">✗ ${result.error}</span>`;
+      toast('Σφάλμα σύνδεσης', 'error');
+    }
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+  btn.textContent = 'Σύνδεση →';
+}
 
 async function saveAIKey() {
   const key     = document.getElementById('ai-key').value.trim();
@@ -1147,6 +1240,17 @@ async function runCommand(cmd) {
 // ===========================================================================
 // Boot
 // ===========================================================================
+async function syncIntervals() {
+  try {
+    toast('Συγχρονισμός…');
+    const result = await post('/intervals/sync', {});
+    toast(`Συγχρονίστηκαν ${result.count} δραστηριότητες!`, 'success');
+    loadDashboard();
+  } catch(e) {
+    toast('Σφάλμα sync: ' + e.message, 'error');
+  }
+}
+
 async function boot() {
   // Check if setup needed
   try {

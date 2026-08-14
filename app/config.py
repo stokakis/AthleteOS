@@ -13,7 +13,11 @@ JOURNALS_DIR  = DATA_DIR / "journals"
 OVERVIEW_DIR  = DATA_DIR / "overview"
 DATA_FILES    = DATA_DIR / "data"
 
-# Strava
+# Intervals.icu
+INTERVALS_ATHLETE_ID = os.getenv("INTERVALS_ATHLETE_ID", "")
+INTERVALS_API_KEY    = os.getenv("INTERVALS_API_KEY", "")
+
+# Strava (legacy — kept for backwards compat)
 STRAVA_CLIENT_ID     = os.getenv("STRAVA_CLIENT_ID", "")
 STRAVA_CLIENT_SECRET = os.getenv("STRAVA_CLIENT_SECRET", "")
 STRAVA_REFRESH_TOKEN = os.getenv("STRAVA_REFRESH_TOKEN", "")
