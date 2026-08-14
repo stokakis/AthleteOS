@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>AthleteOS</title>
+<style>
+:root {
+  --bg:       #0a0a0a;
+  --surface:  #111111;
+  --border:   #1e1e1e;
+  --border2:  #2a2a2a;
+  --text:     #e8e8e8;
+  --muted:    #6b7280;
+  --accent:   #f97316;
+  --accent2:  #ea580c;
+  --green:    #22c55e;
+  --red:      #ef4444;
+  --blue:     #3b82f6;
+  --yellow:   #eab308;
+  --radius:   10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;font-size:14px;line-height:1.6;min-height:100vh}
+a{color:var(--accent);text-decoration:none}
+
+/* Layout */
+#shell{display:flex;height:100vh;overflow:hidden}
+#sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+#main{flex:1;overflow-y:auto;background:var(--bg)}
+
+/* Sidebar */
+.logo{padding:24px 20px 16px;border-bottom:1px solid var(--border)}
+.logo-text{font-size:18px;font-weight:700;color:var(--accent);letter-spacing:-0.5px}
+.logo-sub{font-size:11px;color:var(--muted);margin-top:2px}
+nav{padding:12px 0;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(249,115,22,.06)}
+.nav-icon{width:16px;text-align:center;font-size:14px}
+.sidebar-footer{padding:16px 20px;border-top:1px solid var(--border)}
+.conn-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
+.conn-row{font-size:11px;color:var(--muted);margin-bottom:4px;display:flex;align-items:center}
+
+/* Pages */
+.page{display:none;padding:32px 36px;max-width:900px}
+.page.active{display:block}
+.page-title{font-size:22px;font-weight:700;margin-bottom:4px;letter-spacing:-0.5px}
+.page-sub{color:var(--muted);font-size:13px;margin-bottom:28px}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.card-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:14px}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.stat-val{font-size:28px;font-weight:700;color:var(--accent)}
+.stat-label{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2)}
+.btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border2)}
+.btn-ghost:hover{color:var(--text);border-color:var(--border2)}
+.btn-green{background:var(--green);color:#fff}
+.btn-sm{padding:6px 12px;font-size:12px}
+
+/* Forms */
+.form-group{margin-bottom:16px}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+input,select,textarea{width:100%;background:#0f0f0f;border:1px solid var(--border2);border-radius:7px;color:var(--text);font-size:13px;padding:9px 12px;outline:none;transition:border-color .15s;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:100px}
+
+/* Badge */
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.badge-orange{background:rgba(249,115,22,.15);color:var(--accent)}
+.badge-green{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-red{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-blue{background:rgba(59,130,246,.15);color:var(--blue)}
+.badge-yellow{background:rgba(234,179,8,.15);color:var(--yellow)}
+
+/* Workout list */
+.workout-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer}
+.workout-row:last-child{border-bottom:none}
+.workout-row:hover .wo-title{color:var(--accent)}
+.wo-date{font-size:11px;color:var(--muted);min-width:80px}
+.wo-title{font-size:13px;font-weight:500;flex:1;margin:0 12px}
+.wo-dur{font-size:11px;color:var(--muted)}
+
+/* Setup wizard */
+#setup-page{max-width:680px}
+.wizard-steps{display:flex;gap:0;margin-bottom:32px}
+.wstep{flex:1;text-align:center;padding:12px 0;font-size:11px;font-weight:600;color:var(--muted);border-bottom:2px solid var(--border2);position:relative;text-transform:uppercase;letter-spacing:.5px}
+.wstep.active{color:var(--accent);border-bottom-color:var(--accent)}
+.wstep.done{color:var(--green);border-bottom-color:var(--green)}
+.wizard-body{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px}
+.wizard-nav{display:flex;justify-content:space-between;margin-top:24px}
+
+/* Chat */
+#chat-messages{min-height:300px;max-height:500px;overflow-y:auto;padding:8px 0;margin-bottom:16px}
+.msg{margin-bottom:16px;display:flex;gap:10px}
+.msg-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;margin-top:2px}
+.msg-user .msg-avatar{background:rgba(249,115,22,.2);color:var(--accent)}
+.msg-ai .msg-avatar{background:rgba(59,130,246,.2);color:var(--blue)}
+.msg-content{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 15px;font-size:13px;line-height:1.7;flex:1;white-space:pre-wrap}
+.msg-user .msg-content{background:rgba(249,115,22,.07);border-color:rgba(249,115,22,.2)}
+.chat-input-row{display:flex;gap:8px}
+.chat-input-row input{flex:1}
+.cmd-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.cmd-btn{background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:6px;color:var(--muted);font-size:11px;padding:4px 10px;cursor:pointer;transition:all .15s}
+.cmd-btn:hover{color:var(--accent);border-color:var(--accent);background:rgba(249,115,22,.06)}
+
+/* Reflection */
+.reflection-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:12px;cursor:pointer}
+.reflection-week{font-size:11px;color:var(--muted);margin-bottom:6px}
+.reflection-excerpt{font-size:13px;line-height:1.6;color:var(--text)}
+.reflection-full{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:13px;line-height:1.8;white-space:pre-wrap;color:var(--muted)}
+
+/* Journal sliders */
+.slider-group{margin-bottom:12px}
+.slider-label{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px}
+.slider-val{color:var(--accent);font-weight:700}
+input[type=range]{padding:0;height:4px;accent-color:var(--accent)}
+
+/* Spinner */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Toast */
+#toast{position:fixed;bottom:24px;right:24px;background:#1a1a1a;border:1px solid var(--border2);border-radius:8px;padding:12px 18px;font-size:13px;color:var(--text);z-index:999;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none}
+#toast.show{opacity:1;transform:translateY(0)}
+
+/* Modal */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
+#modal-overlay.show{display:flex}
+#modal-box{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:28px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{cursor:pointer;color:var(--muted);font-size:18px;line-height:1}
+.modal-close:hover{color:var(--text)}
+.modal-body{font-size:13px;line-height:1.8;white-space:pre-wrap;color:var(--muted)}
+
+/* Responsive */
+@media(max-width:640px){
+  #sidebar{display:none}
+  .page{padding:20px 16px}
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* Markdown-ish rendering */
+.md h1,.md h2,.md h3{font-weight:700;margin:16px 0 8px;color:var(--text)}
+.md h1{font-size:18px}.md h2{font-size:15px}.md h3{font-size:13px}
+.md p{margin-bottom:10px;color:var(--muted)}
+.md strong{color:var(--text)}
+.md code{background:rgba(255,255,255,.06);padding:1px 5px;border-radius:3px;font-size:12px}
+.md table{width:100%;border-collapse:collapse;margin:12px 0;font-size:12px}
+.md th{text-align:left;padding:6px 10px;border-bottom:1px solid var(--border2);color:var(--muted);font-weight:600}
+.md td{padding:6px 10px;border-bottom:1px solid var(--border);color:var(--muted)}
+.md ul,.md ol{padding-left:20px;color:var(--muted);margin-bottom:10px}
+.md li{margin-bottom:3px}
+</style>
+</head>
+<body>
+
+<div id="shell">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="logo">
+      <div class="logo-text">⚡ AthleteOS</div>
+      <div class="logo-sub">AI Personal Trainer</div>
+    </div>
+    <nav>
+      <div class="nav-item active" onclick="goto('dashboard')"><span class="nav-icon">◈</span> Dashboard</div>
+      <div class="nav-item" onclick="goto('calendar')"><span class="nav-icon">◷</span> Calendar</div>
+      <div class="nav-item" onclick="goto('coach')"><span class="nav-icon">◉</span> AI Coach</div>
+      <div class="nav-item" onclick="goto('journal')"><span class="nav-icon">◎</span> Journal</div>
+      <div class="nav-item" onclick="goto('reflections')"><span class="nav-icon">◑</span> Reflections</div>
+      <div class="nav-item" onclick="goto('setup')"><span class="nav-icon">◈</span> Setup</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="conn-row" id="conn-strava"><span class="conn-dot" style="background:var(--muted)"></span>Strava</div>
+      <div class="conn-row" id="conn-ai"><span class="conn-dot" style="background:var(--muted)"></span>AI Coach</div>
+      <div class="conn-row" id="conn-hevy"><span class="conn-dot" style="background:var(--muted)"></span>Hevy</div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <div id="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub" id="dash-sub">Loading your training data…</div>
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat"><div class="stat-val" id="stat-pending">—</div><div class="stat-label">Pending Sessions</div></div>
+        <div class="stat"><div class="stat-val" id="stat-sync">—</div><div class="stat-label">Last Sync</div></div>
+        <div class="stat"><div class="stat-val" id="stat-streak">—</div><div class="stat-label">Completed (recent)</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-title">Next Session</div>
+          <div id="next-session">
+            <div style="color:var(--muted);font-size:13px">No pending sessions. <a href="#" onclick="goto('coach')">Plan workouts →</a></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Quick Actions</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-primary" onclick="runCommand('/review')">▶ Weekly Review</button>
+            <button class="btn btn-ghost" onclick="runCommand('/fetch-activities')">↓ Sync Strava</button>
+            <button class="btn btn-ghost" onclick="goto('journal')">+ Journal Entry</button>
+            <button class="btn btn-ghost" onclick="runCommand('/plan-workouts')">⊞ Plan Workouts</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="latest-reflection-card" style="display:none">
+        <div class="card-title">Latest Reflection</div>
+        <div class="md" id="latest-reflection-content"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Recent Activity</div>
+        <div id="recent-list"><div style="color:var(--muted);font-size:13px">No completed sessions yet.</div></div>
+      </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div class="page" id="page-calendar">
+      <div class="page-title">Calendar</div>
+      <div class="page-sub">Upcoming planned sessions</div>
+      <div class="card">
+        <div id="calendar-content">
+          <div style="color:var(--muted)">Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI COACH -->
+    <div class="page" id="page-coach">
+      <div class="page-title">AI Coach</div>
+      <div class="page-sub">Chat with your AI trainer or run a command</div>
+      <div class="card">
+        <div class="cmd-bar">
+          <span class="cmd-btn" onclick="sendCmd('/plan-workouts')">/plan-workouts</span>
+          <span class="cmd-btn" onclick="sendCmd('/review')">/review</span>
+          <span class="cmd-btn" onclick="sendCmd('/fetch-activities')">/fetch-activities</span>
+          <span class="cmd-btn" onclick="sendCmd('/calendar')">/calendar</span>
+          <span class="cmd-btn" onclick="sendCmd('/journal')">/journal</span>
+          <span class="cmd-btn" onclick="sendCmd('/set-goals')">/set-goals</span>
+          <span class="cmd-btn" onclick="sendCmd('/push-workouts')">/push-workouts</span>
+        </div>
+        <div id="chat-messages"></div>
+        <div class="chat-input-row">
+          <input id="chat-input" placeholder="Message your coach…" onkeydown="chatKey(event)"/>
+          <button class="btn btn-primary" onclick="sendChat()" id="chat-send-btn">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- JOURNAL -->
+    <div class="page" id="page-journal">
+      <div class="page-title">Journal</div>
+      <div class="page-sub">Track how you feel — feeds into planning decisions</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-title">New Entry</div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="j-date"/>
+          </div>
+          <div class="form-group">
+            <label>Context</label>
+            <select id="j-context">
+              <option value="general">General</option>
+              <option value="pre-session">Pre-session</option>
+              <option value="post-session">Post-session</option>
+            </select>
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Energy</span><span class="slider-val" id="v-energy">3</span></div>
+            <input type="range" min="1" max="5" value="3" id="j-energy" oninput="document.getElementById('v-energy').textContent=this.value"/>
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Fatigue</span><span class="slider-val" id="v-fatigue">3</span></div>
+            <input type="range" min="1" max="5" value="3" id="j-fatigue" oninput="document.getElementById('v-fatigue').textContent=this.value"/>
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Mood</span><span class="slider-val" id="v-mood">3</span></div>
+            <input type="range" min="1" max="5" value="3" id="j-mood" oninput="document.getElementById('v-mood').textContent=this.value"/>
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Stress</span><span class="slider-val" id="v-stress">2</span></div>
+            <input type="range" min="1" max="5" value="2" id="j-stress" oninput="document.getElementById('v-stress').textContent=this.value"/>
+          </div>
+          <div class="form-group">
+            <label>Sleep (hours)</label>
+            <input type="number" id="j-sleep" value="7.5" step="0.5" min="0" max="12"/>
+          </div>
+          <div class="form-group">
+            <label>Soreness / notes</label>
+            <input id="j-soreness" placeholder="e.g. quads, lower back tight…"/>
+          </div>
+          <div class="form-group">
+            <label>Additional notes</label>
+            <textarea id="j-notes" placeholder="Anything else to note…" style="min-height:70px"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="saveJournal()">Save Entry</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Recent Entries</div>
+          <div id="journal-list"><div style="color:var(--muted)">Loading…</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- REFLECTIONS -->
+    <div class="page" id="page-reflections">
+      <div class="page-title">Reflections</div>
+      <div class="page-sub">Weekly coaching summaries</div>
+      <div id="reflections-list"><div style="color:var(--muted)">Loading…</div></div>
+    </div>
+
+    <!-- SETUP WIZARD -->
+    <div class="page" id="page-setup" id="setup-page">
+      <div class="page-title">Setup</div>
+      <div class="page-sub">Connect your accounts and configure AthleteOS</div>
+
+      <div class="wizard-steps">
+        <div class="wstep active" id="ws-0">1 · Profile</div>
+        <div class="wstep" id="ws-1">2 · Strava</div>
+        <div class="wstep" id="ws-2">3 · AI Coach</div>
+        <div class="wstep" id="ws-3">4 · Hevy</div>
+        <div class="wstep" id="ws-4">5 · Done</div>
+      </div>
+
+      <!-- Step 0: Profile basics -->
+      <div class="wizard-body" id="wizard-0">
+        <h3 style="margin-bottom:6px;font-size:16px">Athlete Profile</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:20px">Tell us about yourself so the AI can plan smart training.</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label>Name</label>
+            <input id="p-name" placeholder="Your name"/>
+          </div>
+          <div class="form-group">
+            <label>Weight (kg)</label>
+            <input id="p-weight" type="number" placeholder="e.g. 78"/>
+          </div>
+          <div class="form-group">
+            <label>Cycling FTP (watts)</label>
+            <input id="p-ftp" type="number" placeholder="e.g. 240"/>
+          </div>
+          <div class="form-group">
+            <label>Max HR (bpm)</label>
+            <input id="p-maxhr" type="number" placeholder="e.g. 185"/>
+          </div>
+          <div class="form-group">
+            <label>Running Threshold Pace (min/km)</label>
+            <input id="p-pace" placeholder="e.g. 4:45"/>
+          </div>
+          <div class="form-group">
+            <label>Swim CSS (sec/100m)</label>
+            <input id="p-css" type="number" placeholder="e.g. 105"/>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Training goals</label>
+          <textarea id="p-goals" placeholder="e.g. Complete a sprint triathlon, improve FTP to 280W, run a half marathon" style="min-height:70px"></textarea>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group">
+            <label>Available days (e.g. Mon,Wed,Fri,Sat)</label>
+            <input id="p-days" placeholder="Mon,Wed,Thu,Sat,Sun"/>
+          </div>
+          <div class="form-group">
+            <label>Max hours/week</label>
+            <input id="p-hours" type="number" placeholder="e.g. 8"/>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Disciplines</label>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px">
+            <label style="text-transform:none;font-weight:400;display:flex;align-items:center;gap:5px"><input type="checkbox" id="d-cycling" checked> Cycling</label>
+            <label style="text-transform:none;font-weight:400;display:flex;align-items:center;gap:5px"><input type="checkbox" id="d-running" checked> Running</label>
+            <label style="text-transform:none;font-weight:400;display:flex;align-items:center;gap:5px"><input type="checkbox" id="d-swimming"> Swimming</label>
+            <label style="text-transform:none;font-weight:400;display:flex;align-items:center;gap:5px"><input type="checkbox" id="d-weights" checked> Weight Training</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Coaching mode</label>
+          <select id="p-coaching">
+            <option value="coach">Coach — supportive, pattern-focused</option>
+            <option value="accountability">Accountability — adherence-first, no excuses</option>
+            <option value="data">Data — numbers only, no narrative</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Notes (injuries, upcoming races, travel…)</label>
+          <textarea id="p-notes" style="min-height:60px" placeholder="e.g. Right knee niggle, bikepacking trip in June…"></textarea>
+        </div>
+
+        <div class="wizard-nav">
+          <div></div>
+          <button class="btn btn-primary" onclick="saveProfile()">Save & Continue →</button>
+        </div>
+      </div>
+
+      <!-- Step 1: Strava -->
+      <div class="wizard-body" id="wizard-1" style="display:none">
+        <h3 style="margin-bottom:6px;font-size:16px">Connect Strava</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:20px">Strava sync lets AthleteOS match your activities to planned sessions and generate reflections.</p>
+
+        <div style="background:rgba(255,255,255,.03);border:1px solid var(--border2);border-radius:8px;padding:16px;margin-bottom:20px;font-size:13px">
+          <p style="margin-bottom:8px;font-weight:600">You need a free Strava API app:</p>
+          <ol style="padding-left:18px;color:var(--muted);line-height:2">
+            <li>Go to <a href="https://www.strava.com/settings/api" target="_blank">strava.com/settings/api</a></li>
+            <li>Create an app — any name, Website: <code>http://localhost</code></li>
+            <li>Set <strong>Authorization Callback Domain</strong> to your Railway domain (or <code>localhost</code> for local dev)</li>
+            <li>Copy your <strong>Client ID</strong> and <strong>Client Secret</strong> below</li>
+          </ol>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+          <div class="form-group">
+            <label>Client ID</label>
+            <input id="s-clientid" placeholder="12345"/>
+          </div>
+          <div class="form-group">
+            <label>Client Secret</label>
+            <input id="s-secret" type="password" placeholder="abc123…"/>
+          </div>
+        </div>
+
+        <div id="strava-status" style="margin-bottom:16px;display:none"></div>
+
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-primary" onclick="startStravaOAuth()" id="strava-auth-btn">Connect Strava →</button>
+          <button class="btn btn-ghost" onclick="skipStrava()">Skip for now</button>
+        </div>
+
+        <div id="strava-waiting" style="display:none;margin-top:16px;color:var(--muted);font-size:13px">
+          <div class="spinner" style="display:inline-block;margin-right:8px"></div>
+          Waiting for authorization… (check the popup window)
+        </div>
+
+        <div class="wizard-nav" style="margin-top:24px">
+          <button class="btn btn-ghost" onclick="wstep(0)">← Back</button>
+          <button class="btn btn-primary" onclick="wstep(2)">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Anthropic -->
+      <div class="wizard-body" id="wizard-2" style="display:none">
+        <h3 style="margin-bottom:6px;font-size:16px">AI Coach — Anthropic API</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:20px">The AI coaching features use Claude via the Anthropic API. Get a key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>.</p>
+
+        <div class="form-group">
+          <label>Anthropic API Key</label>
+          <input id="ai-key" type="password" placeholder="sk-ant-…"/>
+        </div>
+        <div id="ai-status" style="margin-bottom:12px;display:none"></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-primary" onclick="saveAIKey()">Save Key</button>
+          <button class="btn btn-ghost" onclick="wstep(3)">Skip for now</button>
+        </div>
+        <div class="wizard-nav">
+          <button class="btn btn-ghost" onclick="wstep(1)">← Back</button>
+          <button class="btn btn-primary" onclick="wstep(3)">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Hevy -->
+      <div class="wizard-body" id="wizard-3" style="display:none">
+        <h3 style="margin-bottom:6px;font-size:16px">Hevy (Optional)</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:20px">Hevy Pro lets AthleteOS push weight training routines directly to your Hevy app. Requires a Hevy Pro subscription.</p>
+
+        <div class="form-group">
+          <label>Hevy API Key</label>
+          <input id="hevy-key" type="password" placeholder="Get it at hevy.com/settings?developer"/>
+        </div>
+        <div id="hevy-status" style="margin-bottom:12px;display:none"></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-primary" onclick="saveHevyKey()">Save Key</button>
+          <button class="btn btn-ghost" onclick="wstep(4)">Skip for now</button>
+        </div>
+        <div class="wizard-nav">
+          <button class="btn btn-ghost" onclick="wstep(2)">← Back</button>
+          <button class="btn btn-primary" onclick="wstep(4)">Next →</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Done -->
+      <div class="wizard-body" id="wizard-4" style="display:none;text-align:center">
+        <div style="font-size:48px;margin-bottom:16px">⚡</div>
+        <h3 style="font-size:20px;margin-bottom:8px">You're all set!</h3>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:24px">AthleteOS is configured and ready. Head to the AI Coach to plan your first training week.</p>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="goto('coach');sendCmd('/plan-workouts')">Plan First Week →</button>
+          <button class="btn btn-ghost" onclick="goto('dashboard')">Go to Dashboard</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- Modal -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-close" onclick="closeModal()">✕</div>
+    </div>
+    <div class="modal-body md" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ===========================================================================
+// State
+// ===========================================================================
+let currentPage = 'dashboard';
+let wizardStep = 0;
+let chatHistory = [];
+let dashData = null;
+
+// ===========================================================================
+// Navigation
+// ===========================================================================
+function goto(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.textContent.toLowerCase().includes(page.slice(0,4))) n.classList.add('active');
+  });
+  currentPage = page;
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'calendar') loadCalendar();
+  if (page === 'reflections') loadReflections();
+  if (page === 'journal') { loadJournal(); initJournalDate(); }
+  if (page === 'setup') loadSetupState();
+}
+
+// ===========================================================================
+// API helpers
+// ===========================================================================
+async function api(path, opts = {}) {
+  const res = await fetch('/api' + path, {
+    headers: { 'Content-Type': 'application/json', ...opts.headers },
+    ...opts
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({detail: res.statusText}));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
+
+async function post(path, body) {
+  return api(path, { method: 'POST', body: JSON.stringify(body) });
+}
+
+// ===========================================================================
+// Toast
+// ===========================================================================
+function toast(msg, type = 'info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.borderColor = type === 'error' ? 'var(--red)' : type === 'success' ? 'var(--green)' : 'var(--border2)';
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ===========================================================================
+// Modal
+// ===========================================================================
+function openModal(title, content) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').innerHTML = renderMd(content);
+  document.getElementById('modal-overlay').classList.add('show');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('show');
+}
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// ===========================================================================
+// Markdown renderer (basic)
+// ===========================================================================
+function renderMd(text) {
+  if (!text) return '';
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/^### (.*)/gm, '<h3>$1</h3>')
+    .replace(/^## (.*)/gm, '<h2>$1</h2>')
+    .replace(/^# (.*)/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+    .replace(/`(.*?)`/g, '<code>$1</code>')
+    .replace(/^\|(.+)\|$/gm, (m, row) => {
+      const cells = row.split('|').map(c => c.trim());
+      return '<tr>' + cells.map(c => c.match(/^-+$/) ? '' : `<td>${c}</td>`).join('') + '</tr>';
+    })
+    .replace(/(<tr>.*<\/tr>\n)+/g, m => `<table>${m}</table>`)
+    .replace(/^[-*] (.*)/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n*)+/g, m => `<ul>${m}</ul>`)
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^([^<\n].+)$/gm, '<p>$1</p>')
+    .replace(/<p><\/p>/g, '');
+}
+
+// ===========================================================================
+// Dashboard
+// ===========================================================================
+async function loadDashboard() {
+  try {
+    const data = await api('/dashboard');
+    dashData = data;
+
+    document.getElementById('stat-pending').textContent = data.pending_count ?? '—';
+    document.getElementById('stat-completed').textContent = (data.recent_completed || []).length;
+
+    if (data.last_strava_sync) {
+      const d = new Date(data.last_strava_sync);
+      document.getElementById('stat-sync').textContent = d.toLocaleDateString('en', {month:'short',day:'numeric'});
+    }
+
+    // Next session
+    const ns = data.pending_next;
+    if (ns) {
+      const d = new Date(ns.date + 'T00:00:00');
+      const day = d.toLocaleDateString('en', {weekday:'long', month:'short', day:'numeric'});
+      const typeColor = {cycling:'var(--blue)',running:'var(--green)',weights:'var(--accent)',swimming:'var(--yellow)'}[ns.type] || 'var(--muted)';
+      document.getElementById('next-session').innerHTML = `
+        <div style="margin-bottom:8px">
+          <span class="badge" style="background:rgba(255,255,255,.06);color:${typeColor}">${ns.type?.toUpperCase()}</span>
+          <span style="font-size:11px;color:var(--muted);margin-left:8px">${day}</span>
+        </div>
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px">${ns.key_focus || '—'}</div>
+        <div style="font-size:12px;color:var(--muted)">${ns.planned_duration_min ? ns.planned_duration_min + ' min' : ''}</div>
+      `;
+    }
+
+    // Recent completed
+    const list = data.recent_completed || [];
+    if (list.length) {
+      document.getElementById('recent-list').innerHTML = list.map(w => `
+        <div class="workout-row" onclick="openModal('${w.key_focus||w.type}','')">
+          <span class="wo-date">${w.date}</span>
+          <span class="wo-title">${w.key_focus || w.type}</span>
+          <span class="badge badge-green">done</span>
+        </div>
+      `).join('');
+    }
+
+    // Latest reflection
+    if (data.latest_reflection) {
+      document.getElementById('latest-reflection-card').style.display = 'block';
+      document.getElementById('latest-reflection-content').innerHTML = renderMd(data.latest_reflection.slice(0, 600) + '…');
+    }
+
+    // Connections
+    updateConnDots(data.setup);
+
+    const sub = data.setup?.profile_exists
+      ? `Profile loaded · ${data.pending_count} pending session${data.pending_count !== 1 ? 's' : ''}`
+      : 'Complete setup to get started.';
+    document.getElementById('dash-sub').textContent = sub;
+
+  } catch(e) {
+    document.getElementById('dash-sub').textContent = 'Could not load data: ' + e.message;
+  }
+}
+
+function updateConnDots(setup) {
+  if (!setup) return;
+  const set = (id, ok) => {
+    const el = document.getElementById(id);
+    if (el) el.querySelector('.conn-dot').style.background = ok ? 'var(--green)' : 'var(--red)';
+  };
+  set('conn-strava', setup.strava_connected);
+  set('conn-ai', setup.anthropic_connected);
+  set('conn-hevy', setup.hevy_connected);
+}
+
+// ===========================================================================
+// Calendar
+// ===========================================================================
+async function loadCalendar() {
+  try {
+    const workouts = await api('/workouts/pending');
+    const el = document.getElementById('calendar-content');
+    if (!workouts.length) {
+      el.innerHTML = '<div style="color:var(--muted);font-size:13px">No pending sessions. <a href="#" onclick="goto(\'coach\')">Plan workouts →</a></div>';
+      return;
+    }
+    const typeColor = {cycling:'badge-blue',running:'badge-green',weights:'badge-orange',swimming:'badge-yellow'};
+    el.innerHTML = workouts.map(w => {
+      const d = new Date(w.date + 'T00:00:00');
+      const day = d.toLocaleDateString('en', {weekday:'short', month:'short', day:'numeric'});
+      return `
+        <div class="workout-row">
+          <span class="wo-date">${day}</span>
+          <span class="wo-title">${w.key_focus || '—'}</span>
+          <span class="badge ${typeColor[w.type]||'badge-orange'}">${w.type}</span>
+          <span class="wo-dur" style="margin-left:8px">${w.planned_duration_min ? w.planned_duration_min+'min' : ''}</span>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    document.getElementById('calendar-content').innerHTML = `<div style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+// ===========================================================================
+// AI Coach
+// ===========================================================================
+function chatKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } }
+
+function sendCmd(cmd) {
+  document.getElementById('chat-input').value = cmd;
+  sendChat();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  appendMsg('user', msg);
+  chatHistory.push({ role: 'user', content: msg });
+
+  const btn = document.getElementById('chat-send-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div>';
+
+  const aiMsgEl = appendMsg('ai', '');
+  let fullText = '';
+
+  try {
+    const res = await fetch('/api/ai/chat/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: chatHistory })
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const lines = decoder.decode(value).split('\n');
+      for (const line of lines) {
+        if (!line.startsWith('data:')) continue;
+        const data = line.slice(5).trim();
+        if (data === '[DONE]') break;
+        try {
+          const obj = JSON.parse(data);
+          if (obj.text) {
+            fullText += obj.text;
+            aiMsgEl.querySelector('.msg-content').innerHTML = renderMd(fullText);
+            scrollChat();
+          }
+          if (obj.error) throw new Error(obj.error);
+        } catch {}
+      }
+    }
+    chatHistory.push({ role: 'assistant', content: fullText });
+  } catch(e) {
+    aiMsgEl.querySelector('.msg-content').textContent = 'Error: ' + e.message;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Send';
+}
+
+function appendMsg(role, text) {
+  const el = document.createElement('div');
+  el.className = `msg msg-${role}`;
+  el.innerHTML = `
+    <div class="msg-avatar">${role === 'user' ? 'U' : 'AI'}</div>
+    <div class="msg-content">${text ? renderMd(text) : ''}</div>
+  `;
+  document.getElementById('chat-messages').appendChild(el);
+  scrollChat();
+  return el;
+}
+
+function scrollChat() {
+  const el = document.getElementById('chat-messages');
+  el.scrollTop = el.scrollHeight;
+}
+
+// ===========================================================================
+// Journal
+// ===========================================================================
+function initJournalDate() {
+  const el = document.getElementById('j-date');
+  if (el && !el.value) el.value = new Date().toISOString().split('T')[0];
+}
+
+async function loadJournal() {
+  try {
+    const entries = await api('/journal');
+    const el = document.getElementById('journal-list');
+    if (!entries.length) {
+      el.innerHTML = '<div style="color:var(--muted)">No entries yet.</div>';
+      return;
+    }
+    const energyEmoji = v => ['','😴','😔','😐','🙂','💪'][v] || v;
+    el.innerHTML = entries.map(e => `
+      <div class="workout-row">
+        <span class="wo-date">${e.date}</span>
+        <span class="wo-title">
+          E:${energyEmoji(e.energy)} F:${e.fatigue} M:${e.mood}
+          ${e.soreness ? `<span style="color:var(--muted)"> · ${e.soreness}</span>` : ''}
+        </span>
+        <span style="font-size:11px;color:var(--muted)">${e.sleep_hours}h</span>
+      </div>
+    `).join('');
+  } catch(e) {
+    document.getElementById('journal-list').innerHTML = `<div style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+async function saveJournal() {
+  const entry = {
+    date:        document.getElementById('j-date').value,
+    context:     document.getElementById('j-context').value,
+    energy:      +document.getElementById('j-energy').value,
+    fatigue:     +document.getElementById('j-fatigue').value,
+    mood:        +document.getElementById('j-mood').value,
+    stress:      +document.getElementById('j-stress').value,
+    sleep_hours: +document.getElementById('j-sleep').value,
+    soreness:    document.getElementById('j-soreness').value || null,
+    notes:       document.getElementById('j-notes').value || null,
+  };
+  try {
+    await post('/journal', entry);
+    toast('Journal entry saved!', 'success');
+    loadJournal();
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+// ===========================================================================
+// Reflections
+// ===========================================================================
+async function loadReflections() {
+  try {
+    const refs = await api('/reflections');
+    const el = document.getElementById('reflections-list');
+    if (!refs.length) {
+      el.innerHTML = '<div style="color:var(--muted)">No reflections yet. Run /review to generate one.</div>';
+      return;
+    }
+    el.innerHTML = refs.map(r => `
+      <div class="reflection-card" onclick="toggleReflection(this)">
+        <div class="reflection-week">📋 ${r.week}</div>
+        <div class="reflection-excerpt">${(r.content||'').slice(0,200).replace(/[#*_]/g,'').trim()}…</div>
+        <div class="reflection-full">${renderMd(r.content||'')}</div>
+      </div>
+    `).join('');
+  } catch(e) {
+    document.getElementById('reflections-list').innerHTML = `<div style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+function toggleReflection(el) {
+  const full = el.querySelector('.reflection-full');
+  full.style.display = full.style.display === 'block' ? 'none' : 'block';
+}
+
+// ===========================================================================
+// Setup wizard
+// ===========================================================================
+function wstep(n) {
+  for (let i = 0; i < 5; i++) {
+    const body = document.getElementById('wizard-' + i);
+    const step = document.getElementById('ws-' + i);
+    if (body) body.style.display = i === n ? 'block' : 'none';
+    if (step) {
+      step.classList.toggle('active', i === n);
+      step.classList.toggle('done', i < n);
+    }
+  }
+  wizardStep = n;
+}
+
+async function loadSetupState() {
+  try {
+    const state = await api('/setup/state');
+    updateConnDots(state);
+  } catch {}
+}
+
+async function saveProfile() {
+  const name    = document.getElementById('p-name').value.trim();
+  const weight  = document.getElementById('p-weight').value;
+  const ftp     = document.getElementById('p-ftp').value;
+  const maxhr   = document.getElementById('p-maxhr').value;
+  const pace    = document.getElementById('p-pace').value;
+  const css     = document.getElementById('p-css').value;
+  const goals   = document.getElementById('p-goals').value;
+  const days    = document.getElementById('p-days').value;
+  const hours   = document.getElementById('p-hours').value;
+  const coaching = document.getElementById('p-coaching').value;
+  const notes   = document.getElementById('p-notes').value;
+
+  const disciplines = [];
+  if (document.getElementById('d-cycling').checked)  disciplines.push('Cycling');
+  if (document.getElementById('d-running').checked)  disciplines.push('Running');
+  if (document.getElementById('d-swimming').checked) disciplines.push('Swimming');
+  if (document.getElementById('d-weights').checked)  disciplines.push('Weight Training');
+
+  if (!name) { toast('Please enter your name', 'error'); return; }
+
+  // Build profile.md content
+  const today = new Date().toISOString().split('T')[0];
+  const profile = `# Athlete Profile
+
+**Name:** ${name}
+**Body Weight:** ${weight ? weight + ' kg' : 'TBD'}
+**Last Updated:** ${today}
+
+---
+
+## Disciplines
+${disciplines.map(d => '- ' + d).join('\n')}
+
+---
+
+## Cycling
+**FTP:** ${ftp ? ftp + 'W' : 'TBD'} *(last tested: ${today})*
+
+### Power Zones (FTP = ${ftp||'?'}W)
+| Zone | Name       | Watts           |
+|------|------------|-----------------|
+| Z1   | Recovery   | < ${ftp ? Math.round(ftp*0.55) : '?'}W |
+| Z2   | Endurance  | ${ftp ? Math.round(ftp*0.56) : '?'}–${ftp ? Math.round(ftp*0.75) : '?'}W |
+| Z3   | Tempo      | ${ftp ? Math.round(ftp*0.76) : '?'}–${ftp ? Math.round(ftp*0.90) : '?'}W |
+| Z4   | Threshold  | ${ftp ? Math.round(ftp*0.91) : '?'}–${ftp ? Math.round(ftp*1.05) : '?'}W |
+| Z5   | VO2max     | ${ftp ? Math.round(ftp*1.06) : '?'}–${ftp ? Math.round(ftp*1.20) : '?'}W |
+| Z6   | Anaerobic  | > ${ftp ? Math.round(ftp*1.21) : '?'}W |
+
+---
+
+## Running
+**Threshold Pace:** ${pace || 'TBD'} /km
+
+---
+
+## Swimming
+**CSS:** ${css ? css + ' sec/100m' : 'TBD'}
+
+---
+
+## Heart Rate
+**Max HR:** ${maxhr ? maxhr + ' bpm' : 'TBD'}
+
+### HR Zones (Max HR = ${maxhr||'?'} bpm)
+| Zone | % Max HR | BPM |
+|------|----------|-----|
+| Z1   | < 68%    | < ${maxhr ? Math.round(maxhr*0.68) : '?'} |
+| Z2   | 68–83%   | ${maxhr ? Math.round(maxhr*0.68) : '?'}–${maxhr ? Math.round(maxhr*0.83) : '?'} |
+| Z3   | 83–88%   | ${maxhr ? Math.round(maxhr*0.83) : '?'}–${maxhr ? Math.round(maxhr*0.88) : '?'} |
+| Z4   | 88–93%   | ${maxhr ? Math.round(maxhr*0.88) : '?'}–${maxhr ? Math.round(maxhr*0.93) : '?'} |
+| Z5   | > 93%    | > ${maxhr ? Math.round(maxhr*0.93) : '?'} |
+
+---
+
+## Goals
+${goals || 'TBD'}
+
+---
+
+## Availability
+**Training Days:** ${days || 'TBD'}
+**Max Hours/Week:** ${hours ? hours + 'h' : 'TBD'}
+
+---
+
+## Strength Archetype
+Athletic/Hybrid
+
+---
+
+## Notes
+${notes || 'None'}
+
+---
+
+## Settings
+coaching_mode: ${coaching}
+`;
+
+  try {
+    await post('/setup/save-profile', { content: profile });
+    toast('Profile saved!', 'success');
+    wstep(1);
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function startStravaOAuth() {
+  const clientId = document.getElementById('s-clientid').value.trim();
+  const secret   = document.getElementById('s-secret').value.trim();
+
+  if (!clientId || !secret) {
+    toast('Enter Client ID and Secret first', 'error');
+    return;
+  }
+
+  // Save credentials first
+  try {
+    await post('/setup/save-env', {
+      STRAVA_CLIENT_ID: clientId,
+      STRAVA_CLIENT_SECRET: secret,
+    });
+  } catch(e) {
+    toast('Could not save credentials: ' + e.message, 'error');
+    return;
+  }
+
+  // Get auth URL
+  const data = await api(`/setup/strava-auth-url?client_id=${encodeURIComponent(clientId)}`);
+  const popup = window.open(data.url, 'strava_auth', 'width=600,height=700,left=200,top=100');
+
+  document.getElementById('strava-waiting').style.display = 'block';
+  document.getElementById('strava-auth-btn').disabled = true;
+
+  // Listen for postMessage from callback page
+  const handler = async (e) => {
+    if (e.data?.type === 'strava_ok') {
+      window.removeEventListener('message', handler);
+      document.getElementById('strava-waiting').style.display = 'none';
+      document.getElementById('strava-auth-btn').disabled = false;
+      const status = document.getElementById('strava-status');
+      status.style.display = 'block';
+      status.innerHTML = `<span style="color:var(--green)">✓ Connected as ${e.data.athlete}</span>`;
+      toast('Strava connected!', 'success');
+    } else if (e.data?.type === 'strava_error') {
+      window.removeEventListener('message', handler);
+      document.getElementById('strava-waiting').style.display = 'none';
+      document.getElementById('strava-auth-btn').disabled = false;
+      toast('Strava error: ' + e.data.error, 'error');
+    }
+  };
+  window.addEventListener('message', handler);
+}
+
+function skipStrava() { wstep(2); }
+
+async function saveAIKey() {
+  const key = document.getElementById('ai-key').value.trim();
+  if (!key) { toast('Enter an API key', 'error'); return; }
+  try {
+    await post('/setup/save-env', { ANTHROPIC_API_KEY: key });
+    const st = document.getElementById('ai-status');
+    st.style.display = 'block';
+    st.innerHTML = '<span style="color:var(--green)">✓ Key saved</span>';
+    toast('AI key saved!', 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+async function saveHevyKey() {
+  const key = document.getElementById('hevy-key').value.trim();
+  if (!key) { toast('Enter an API key', 'error'); return; }
+  try {
+    await post('/setup/save-env', { HEVY_API_KEY: key });
+    const st = document.getElementById('hevy-status');
+    st.style.display = 'block';
+    st.innerHTML = '<span style="color:var(--green)">✓ Key saved</span>';
+    toast('Hevy key saved!', 'success');
+  } catch(e) {
+    toast('Error: ' + e.message, 'error');
+  }
+}
+
+// ===========================================================================
+// Run command (quick actions)
+// ===========================================================================
+async function runCommand(cmd) {
+  goto('coach');
+  setTimeout(() => sendCmd(cmd), 200);
+}
+
+// ===========================================================================
+// Boot
+// ===========================================================================
+async function boot() {
+  // Check if setup needed
+  try {
+    const state = await api('/setup/state');
+    if (!state.profile_exists) {
+      goto('setup');
+      return;
+    }
+    updateConnDots(state);
+    loadDashboard();
+  } catch {
+    loadDashboard();
+  }
+}
+
+// Fix stat-streak reference
+document.getElementById('stat-streak').id = 'stat-completed';
+
+boot();
+</script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+"""
+AI coaching service — sends requests to Claude via Anthropic API.
+Wraps all slash-command logic as API calls.
+"""
+import json
+import os
+from pathlib import Path
+from typing import Optional
+
+import anthropic
+
+from app.config import ANTHROPIC_API_KEY
+from app.services import file_service as fs
+
+# Load CLAUDE.md system prompt once
+_CLAUDE_MD_PATH = Path("CLAUDE.md")
+_SYSTEM_PROMPT: Optional[str] = None
+
+
+def _get_system_prompt() -> str:
+    global _SYSTEM_PROMPT
+    if _SYSTEM_PROMPT is None:
+        text = _CLAUDE_MD_PATH.read_text(encoding="utf-8") if _CLAUDE_MD_PATH.exists() else ""
+        _SYSTEM_PROMPT = text
+    return _SYSTEM_PROMPT
+
+
+def _client() -> anthropic.Anthropic:
+    key = os.getenv("ANTHROPIC_API_KEY", ANTHROPIC_API_KEY)
+    if not key:
+        raise RuntimeError("ANTHROPIC_API_KEY not set. Add it in Settings.")
+    return anthropic.Anthropic(api_key=key)
+
+
+def _build_context() -> str:
+    """Build a context block from current athlete files."""
+    parts = []
+
+    profile = fs.get_profile()
+    if profile:
+        parts.append(f"## athlete/profile.md\n{profile}")
+
+    pending = fs.list_pending_workouts()
+    if pending:
+        parts.append(f"## Pending workouts (count: {len(pending)})\n" +
+                     json.dumps(pending[:10], indent=2))
+
+    reflection = fs.get_latest_reflection()
+    if reflection:
+        parts.append(f"## Latest reflection\n{reflection[:2000]}")
+
+    journals = fs.list_journal_entries()
+    if journals:
+        recent = journals[:3]
+        parts.append(f"## Recent journal entries\n" + json.dumps(recent, indent=2))
+
+    consistency = fs.get_consistency_log()
+    if consistency:
+        parts.append(f"## Consistency log (excerpt)\n{consistency[:1500]}")
+
+    return "\n\n---\n\n".join(parts)
+
+
+def chat(messages: list[dict], stream: bool = False) -> str:
+    """
+    Send a conversation to Claude and return the response text.
+    messages: list of {"role": "user"|"assistant", "content": str}
+    """
+    client = _client()
+    system = _get_system_prompt() + "\n\n# Current Athlete Context\n\n" + _build_context()
+
+    response = client.messages.create(
+        model="claude-opus-4-5",
+        max_tokens=4096,
+        system=system,
+        messages=messages,
+    )
+    return response.content[0].text
+
+
+def run_command(command: str, args: str = "") -> str:
+    """
+    Run a slash command (e.g. /plan-workouts, /review, /journal).
+    Loads the command definition from .claude/commands/ and sends to Claude.
+    """
+    cmd_name = command.lstrip("/")
+    cmd_path = Path(".claude") / "commands" / f"{cmd_name}.md"
+
+    if not cmd_path.exists():
+        return f"Command /{cmd_name} not found."
+
+    cmd_def = cmd_path.read_text(encoding="utf-8")
+    system = _get_system_prompt() + "\n\n# Current Athlete Context\n\n" + _build_context()
+    system += f"\n\n# Command Definition\n\n{cmd_def}"
+
+    user_msg = f"Run /{cmd_name}"
+    if args:
+        user_msg += f" {args}"
+
+    client = _client()
+    response = client.messages.create(
+        model="claude-opus-4-5",
+        max_tokens=8096,
+        system=system,
+        messages=[{"role": "user", "content": user_msg}],
+    )
+    return response.content[0].text
+
+
+def stream_chat(messages: list[dict]):
+    """Generator that yields text chunks for SSE streaming."""
+    client = _client()
+    system = _get_system_prompt() + "\n\n# Current Athlete Context\n\n" + _build_context()
+
+    with client.messages.stream(
+        model="claude-opus-4-5",
+        max_tokens=4096,
+        system=system,
+        messages=messages,
+    ) as stream:
+        for text in stream.text_stream:
+            yield text
