@@ -916,6 +916,14 @@ async function sendChat() {
   if (!_currentSessionId) _currentSessionId = _newSessionId();
   chatHistory.push({ role: 'user', content: userContent });
 
+  // Warn if history is getting long
+  if (chatHistory.length > 18) {
+    const warn = document.createElement('div');
+    warn.style.cssText = 'text-align:center;font-size:11px;color:var(--muted);margin:4px 0';
+    warn.textContent = '⚠️ Μεγάλη συνομιλία — ξεκίνα νέα για καλύτερη απόδοση';
+    document.getElementById('chat-messages').appendChild(warn);
+  }
+
   const btn = document.getElementById('chat-send-btn');
   btn.disabled = true;
   btn.innerHTML = '<div class="spinner"></div>';

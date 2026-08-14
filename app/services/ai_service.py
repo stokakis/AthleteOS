@@ -176,17 +176,32 @@ def run_command(command: str, args: str = "") -> str:
     return response.content[0].text
 
 
+MAX_HISTORY_MESSAGES = 20  # keep last 20 messages to avoid context overflow
+
+
+def _trim_messages(messages: list[dict]) -> list[dict]:
+    """Keep only the last MAX_HISTORY_MESSAGES, always starting with a user message."""
+    if len(messages) <= MAX_HISTORY_MESSAGES:
+        return messages
+    trimmed = messages[-MAX_HISTORY_MESSAGES:]
+    # Ensure first message is from user (API requirement)
+    while trimmed and trimmed[0].get("role") != "user":
+        trimmed = trimmed[1:]
+    return trimmed
+
+
 def stream_chat(messages: list[dict]):
     """Generator that yields text chunks for SSE streaming."""
     client = _client()
     system = _get_system_prompt() + "\n\n# Current Athlete Context\n\n" + _build_context()
+    trimmed = _trim_messages(messages)
 
     try:
         with client.messages.stream(
             model=_model(),
             max_tokens=8096,
             system=system,
-            messages=messages,
+            messages=trimmed,
         ) as stream:
             for text in stream.text_stream:
                 yield text
