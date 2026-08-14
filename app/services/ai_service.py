@@ -72,7 +72,10 @@ def _client() -> anthropic.Anthropic:
         raise RuntimeError("ANTHROPIC_API_KEY not set. Add it in Settings.")
     kwargs = {"api_key": key}
     if base_url:
-        kwargs["base_url"] = base_url
+        # Ensure base_url ends without trailing slash
+        kwargs["base_url"] = base_url.rstrip("/")
+    import logging
+    logging.info(f"[ai_service] model={_model()} base_url={kwargs.get('base_url','default')}")
     return anthropic.Anthropic(**kwargs)
 
 
@@ -178,11 +181,16 @@ def stream_chat(messages: list[dict]):
     client = _client()
     system = _get_system_prompt() + "\n\n# Current Athlete Context\n\n" + _build_context()
 
-    with client.messages.stream(
-        model=_model(),
-        max_tokens=4096,
-        system=system,
-        messages=messages,
-    ) as stream:
-        for text in stream.text_stream:
-            yield text
+    try:
+        with client.messages.stream(
+            model=_model(),
+            max_tokens=8096,
+            system=system,
+            messages=messages,
+        ) as stream:
+            for text in stream.text_stream:
+                yield text
+    except Exception as e:
+        import traceback
+        err = traceback.format_exc()
+        yield f"\n\n⚠️ **AI Error:** {str(e)}\n\nDetails: {err[:500]}"
