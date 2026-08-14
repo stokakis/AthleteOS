@@ -94,6 +94,7 @@ textarea{resize:vertical;min-height:100px}
 .wstep{flex:1;text-align:center;padding:12px 0;font-size:11px;font-weight:600;color:var(--muted);border-bottom:2px solid var(--border2);position:relative;text-transform:uppercase;letter-spacing:.5px}
 .wstep.active{color:var(--accent);border-bottom-color:var(--accent)}
 .wstep.done{color:var(--green);border-bottom-color:var(--green)}
+.wstep.done{color:var(--green);border-bottom-color:var(--green)}
 .wizard-body{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px}
 .wizard-nav{display:flex;justify-content:space-between;margin-top:24px}
 
@@ -339,11 +340,11 @@ input[type=range]{padding:0;height:4px;accent-color:var(--accent)}
       <div class="page-sub">Connect your accounts and configure AthleteOS</div>
 
       <div class="wizard-steps">
-        <div class="wstep active" id="ws-0">1 · Profile</div>
-        <div class="wstep" id="ws-1">2 · Strava</div>
-        <div class="wstep" id="ws-2">3 · AI Coach</div>
-        <div class="wstep" id="ws-3">4 · Hevy</div>
-        <div class="wstep" id="ws-4">5 · Done</div>
+        <div class="wstep active" id="ws-0" onclick="wstep(0)" style="cursor:pointer">1 · Profile</div>
+        <div class="wstep" id="ws-1" onclick="wstep(1)" style="cursor:pointer">2 · Intervals</div>
+        <div class="wstep" id="ws-2" onclick="wstep(2)" style="cursor:pointer">3 · AI Coach</div>
+        <div class="wstep" id="ws-3" onclick="wstep(3)" style="cursor:pointer">4 · Hevy</div>
+        <div class="wstep" id="ws-4" onclick="wstep(4)" style="cursor:pointer">5 · Done</div>
       </div>
 
       <!-- Step 0: Profile basics -->
@@ -982,6 +983,33 @@ async function loadSetupState() {
   try {
     const state = await api('/setup/state');
     updateConnDots(state);
+
+    // Pre-fill Intervals fields if already connected
+    if (state.intervals_athlete_id) {
+      const el = document.getElementById('i-athleteid');
+      if (el) el.value = state.intervals_athlete_id;
+      const st = document.getElementById('intervals-status');
+      if (st) { st.style.display = 'block'; st.innerHTML = '<span style="color:var(--green)">✓ Συνδεδεμένο</span>'; }
+    }
+
+    // Pre-fill AI key indicator
+    if (state.anthropic_connected) {
+      const st = document.getElementById('ai-status');
+      if (st) { st.style.display = 'block'; st.innerHTML = '<span style="color:var(--green)">✓ Key αποθηκευμένο</span>'; }
+    }
+
+    // Pre-fill Hevy indicator
+    if (state.hevy_connected) {
+      const st = document.getElementById('hevy-status');
+      if (st) { st.style.display = 'block'; st.innerHTML = '<span style="color:var(--green)">✓ Key αποθηκευμένο</span>'; }
+    }
+
+    // Mark steps as done
+    if (state.profile_exists)        document.getElementById('ws-0').classList.add('done');
+    if (state.intervals_connected)   document.getElementById('ws-1').classList.add('done');
+    if (state.anthropic_connected)   document.getElementById('ws-2').classList.add('done');
+    if (state.hevy_connected)        document.getElementById('ws-3').classList.add('done');
+
   } catch {}
 }
 

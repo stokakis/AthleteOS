@@ -40,8 +40,11 @@ def setup_state():
 @router.post("/setup/save-env")
 async def save_env(request: Request):
     body = await request.json()
+    allowed = {"ANTHROPIC_API_KEY", "ANTHROPIC_BASE_URL", "ANTHROPIC_MODEL",
+               "HEVY_API_KEY", "INTERVALS_ATHLETE_ID", "INTERVALS_API_KEY",
+               "STRAVA_CLIENT_ID", "STRAVA_CLIENT_SECRET", "STRAVA_REFRESH_TOKEN"}
     for key, value in body.items():
-        if key.startswith("STRAVA_") or key in ("ANTHROPIC_API_KEY", "HEVY_API_KEY"):
+        if key in allowed or key.startswith("STRAVA_"):
             fs.save_env_var(key, value)
             os.environ[key] = value
     return {"ok": True}

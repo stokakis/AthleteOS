@@ -79,6 +79,12 @@ def get_setup_state() -> dict:
     def env_has(key):
         return bool(re.search(rf"^{key}=.+", env_text, re.MULTILINE))
 
+    # Read Intervals athlete ID for pre-fill
+    intervals_id = ""
+    m = re.search(r"^INTERVALS_ATHLETE_ID=(.+)", env_text, re.MULTILINE)
+    if m:
+        intervals_id = m.group(1).strip()
+
     return {
         "profile_exists": profile is not None,
         "profile_has_placeholders": bool(re.search(r"\[.+\]", profile or "")),
@@ -86,6 +92,8 @@ def get_setup_state() -> dict:
             env_has(k) for k in
             ["STRAVA_CLIENT_ID", "STRAVA_CLIENT_SECRET", "STRAVA_REFRESH_TOKEN"]
         ),
+        "intervals_connected": env_has("INTERVALS_ATHLETE_ID") and env_has("INTERVALS_API_KEY"),
+        "intervals_athlete_id": intervals_id,
         "hevy_connected": env_has("HEVY_API_KEY"),
         "anthropic_connected": env_has("ANTHROPIC_API_KEY"),
     }
